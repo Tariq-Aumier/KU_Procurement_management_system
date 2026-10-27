@@ -128,10 +128,6 @@ export default function Settings() {
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <Info label={t.name} value={t.systemName} />
           <Info label={t.version} value="1.0.0" />
-          <Info label={t.storage} value={t.storage} />
-          <Info label={t.passwordSecurity} value="SHA-256 hashing + salt" />
-          <Info label={t.sessionDuration} value={t.sessionDuration} />
-          <Info label={t.maxLogRecords} value={t.maxLogRecords} />
         </div>
       </Card>
       </>
