@@ -53,12 +53,12 @@ Route::prefix('v1')->group(function () {
         Route::get('contracts/{id}/amendments',[GovernanceController::class,'amendments']); Route::post('contracts/{id}/amendments',[GovernanceController::class,'createAmendment'])->middleware('role:admin,manager'); Route::post('contract-amendments/{id}/approve',[GovernanceController::class,'approveAmendment'])->middleware('role:admin,manager,finance');
         Route::get('reports/{code}',[GovernanceController::class,'report']); Route::get('exports/{id}/download',[GovernanceController::class,'downloadExport']);
         // Backup Routes
-        Route::get('backups',[BackupController::class,'index'])->middleware('role:admin');
-        Route::post('backups',[BackupController::class,'store'])->middleware('role:admin');
-        Route::post('backups/restore',[BackupController::class,'restore'])->middleware('role:admin');
-        Route::get('backups/{id}/download',[BackupController::class,'downloadJson'])->middleware('role:admin');
-        Route::get('backups/{id}/download-excel',[BackupController::class,'downloadExcel'])->middleware('role:admin');
-        Route::delete('backups/{id}',[BackupController::class,'destroy'])->middleware('role:admin');
+        Route::get('backups',[BackupController::class,'index']);
+        Route::post('backups',[BackupController::class,'store']);
+        Route::post('backups/restore',[BackupController::class,'restore']);
+        Route::get('backups/{id}/download',[BackupController::class,'downloadJson']);
+        Route::get('backups/{id}/download-excel',[BackupController::class,'downloadExcel']);
+        Route::delete('backups/{id}',[BackupController::class,'destroy']);
         // Office Categories & Offices Routes
         Route::prefix('office-categories')->group(function () {
             Route::get('/',[OfficeCategoryController::class,'index']);
@@ -128,8 +128,8 @@ Route::prefix('v1')->group(function () {
         });
         // Reports Routes
         Route::get('reports-model',[ReportsController::class,'index']);
-        // Recycle Bin Routes (Admin only)
-        Route::prefix('recycle-bin')->middleware('role:admin')->group(function () {
+        // Recycle Bin Routes
+        Route::prefix('recycle-bin')->group(function () {
             Route::get('/',[RecycleBinController::class,'index']);
             Route::get('statistics',[RecycleBinController::class,'statistics']);
             Route::post('restore/{type}/{id}',[RecycleBinController::class,'restore']);
