@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Companies from "./pages/Companies";
 import Contracts from "./pages/Contracts";
 import Orders from "./pages/Orders";
+import Forms from "./pages/Forms";
 import Inventory from "./pages/Inventory";
 import ListOfOffices from "./pages/ListOfOffices";
 import Vendors from "./pages/Vendors";
@@ -42,6 +43,7 @@ function Shell() {
       {page === "companies" && <Companies />}
       {page === "contracts" && <Contracts />}
       {page === "orders" && <Orders />}
+      {page === "forms" && <Forms />}
       {page === "listOfOffices" && <ListOfOffices />}
       {page === "inventory" && <Inventory />}
       {page === "vendors" && <Vendors />}

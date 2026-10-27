@@ -9,6 +9,7 @@ export type PageKey =
   | "companies"
   | "contracts"
   | "orders"
+  | "forms"
   | "listOfOffices"
   | "inventory"
   | "vendors"
@@ -30,6 +31,7 @@ const NAV: NavItem[] = [
   { key: "companies", icon: "🏢" },
   { key: "contracts", icon: "📑" },
   { key: "orders", icon: "📦" },
+  { key: "forms", icon: "📝" },
   { key: "listOfOffices", icon: "🏢" },
   { key: "inventory", icon: "📋" },
   { key: "vendors", icon: "🤝" },
