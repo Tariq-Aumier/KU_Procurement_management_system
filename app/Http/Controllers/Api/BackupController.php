@@ -7,7 +7,6 @@ use App\Models\Backup;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BackupController extends Controller
@@ -56,14 +55,21 @@ class BackupController extends Controller
             // Generate backup data
             $backupData = $this->generateBackupData();
 
-            // Save JSON backup
+            // Save JSON backup - use absolute path to ensure it goes to storage/app/backups
             $jsonFileName = 'backup-' . now()->format('Y-m-d-His') . '.json';
-            $jsonPath = 'backups/' . $jsonFileName;
-            Storage::disk('local')->put($jsonPath, json_encode($backupData, JSON_PRETTY_PRINT));
+            $jsonPath = storage_path('app/backups/' . $jsonFileName);
 
-            // Save backup record using model
+            // Ensure directory exists
+            if (!file_exists(dirname($jsonPath))) {
+                mkdir(dirname($jsonPath), 0755, true);
+            }
+
+            // Write file directly
+            file_put_contents($jsonPath, json_encode($backupData, JSON_PRETTY_PRINT));
+
+            // Save backup record using model with relative path
             $backup = Backup::create([
-                'storage_path' => $jsonPath,
+                'storage_path' => 'backups/' . $jsonFileName,
                 'checksum' => md5(json_encode($backupData)),
                 'status' => 'completed',
                 'created_by' => auth()->id() ?? 1,
@@ -102,7 +108,8 @@ class BackupController extends Controller
                 ], 404);
             }
 
-            $file = Storage::disk('local')->get($backup->storage_path);
+            $filePath = $backup->getFilePath();
+            $file = file_get_contents($filePath);
             $fileName = basename($backup->storage_path);
 
             return response()->streamDownload(function () use ($file) {
@@ -134,7 +141,8 @@ class BackupController extends Controller
                 ], 404);
             }
 
-            $jsonContent = Storage::disk('local')->get($backup->storage_path);
+            $filePath = $backup->getFilePath();
+            $jsonContent = file_get_contents($filePath);
             $backupData = json_decode($jsonContent, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
@@ -171,13 +179,14 @@ class BackupController extends Controller
             $backup = Backup::findOrFail($id);
 
             // Delete files
-            if (Storage::disk('local')->exists($backup->storage_path)) {
-                Storage::disk('local')->delete($backup->storage_path);
+            $filePath = $backup->getFilePath();
+            if (file_exists($filePath)) {
+                unlink($filePath);
             }
 
-            $csvPath = str_replace('.json', '.csv', $backup->storage_path);
-            if (Storage::disk('local')->exists($csvPath)) {
-                Storage::disk('local')->delete($csvPath);
+            $csvPath = str_replace('.json', '.csv', $filePath);
+            if (file_exists($csvPath)) {
+                unlink($csvPath);
             }
 
             // Delete record using model
