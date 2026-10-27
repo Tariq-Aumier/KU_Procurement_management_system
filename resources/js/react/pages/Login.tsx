@@ -158,12 +158,12 @@ export default function Login() {
                   placeholder="••••••••"
                   invalid={!!errors.password}
                   disabled={isLocked || loading}
-                  className="pr-10"
+                  className="pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 focus:outline-none disabled:opacity-50"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 text-lg cursor-pointer hover:opacity-70 disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border-none p-1"
                   disabled={isLocked || loading}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
