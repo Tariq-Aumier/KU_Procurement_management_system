@@ -18,6 +18,14 @@ class BackupController extends Controller
     public function index(): JsonResponse
     {
         try {
+            // Clean up orphaned backup records (records without files)
+            $allBackups = Backup::all();
+            foreach ($allBackups as $backup) {
+                if (!$backup->getFileExists()) {
+                    $backup->delete();
+                }
+            }
+
             $backups = Backup::with('createdBy')
                 ->orderBy('created_at', 'desc')
                 ->get()
