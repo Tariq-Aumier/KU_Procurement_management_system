@@ -130,7 +130,6 @@ export const translations = {
     attemptsLeft: "attempts left",
     invalid: "Invalid username or password",
     demoAccounts: "Demo accounts:",
-    passwordHashed: "Passwords are hashed with SHA-256",
     // Layout
     skipToContent: "Skip to main content",
     darkMode: "Dark Mode",
@@ -411,7 +410,6 @@ export const translations = {
     attemptsLeft: "هڅې پاتې",
     invalid: "د کارن نوم یا پټنوم تېروتی دی",
     demoAccounts: "د ازموینې لپاره:",
-    passwordHashed: "ستاسو پټنومونه د SHA-256 سره هیش شوي",
     // Layout
     skipToContent: "پرېښدنه څخه ولاړ شه",
     darkMode: "تاریک حالت",
@@ -692,7 +690,6 @@ export const translations = {
     attemptsLeft: "تلاش باقی مانده",
     invalid: "نام کاربری یا رمز عبور اشتباه است",
     demoAccounts: "حساب‌های آزمایشی:",
-    passwordHashed: "رمزهای عبور با SHA-256 هش شده‌اند",
     // Layout
     skipToContent: "پرش به محتوای اصلی",
     darkMode: "حالت تاریک",
