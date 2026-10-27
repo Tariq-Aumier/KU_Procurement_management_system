@@ -147,41 +147,27 @@ export default function Login() {
             </Field>
 
             <Field label={t.password} htmlFor="password" error={errors.password} required>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  invalid={!!errors.password}
-                  disabled={isLocked || loading}
-                  style={{ paddingRight: '35px' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLocked || loading}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  style={{
-                    position: 'absolute',
-                    right: '8px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '18px',
-                    padding: '0',
-                    zIndex: 10
-                  }}
-                >
-                  {showPassword ? '👁' : '🔒'}
-                </button>
-              </div>
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                invalid={!!errors.password}
+                disabled={isLocked || loading}
+              />
             </Field>
+
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              disabled={isLocked || loading}
+              className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 mt-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {showPassword ? '👁 Hide password' : '🔒 Show password'}
+            </button>
 
             <Button type="submit" size="lg" className="w-full" loading={loading} disabled={isLocked}>
               {t.login}
