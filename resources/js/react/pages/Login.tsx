@@ -163,10 +163,6 @@ export default function Login() {
               {t.login}
             </Button>
           </form>
-
-          <p className="mt-6 text-xs text-slate-400 dark:text-slate-500 text-center">
-            🔒 {t.passwordHashed}
-          </p>
         </div>
       </div>
     </div>
