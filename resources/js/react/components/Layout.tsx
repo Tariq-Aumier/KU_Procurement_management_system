@@ -38,9 +38,9 @@ const NAV: NavItem[] = [
   { key: "forms", icon: "📝" },
   { key: "users", icon: "👥", adminOnly: true },
   { key: "audit", icon: "📜", adminOnly: true },
-  { key: "backup", icon: "💾" },
+  { key: "backup", icon: "💾", adminOnly: true },
   { key: "settings", icon: "⚙️" },
-  { key: "recycleBin", icon: "🗑️" },
+  { key: "recycleBin", icon: "🗑️", adminOnly: true },
 ];
 
 export default function Layout({

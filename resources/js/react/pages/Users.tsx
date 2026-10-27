@@ -6,27 +6,13 @@ import type { Role } from "../types";
 import { usersApi, type User as ApiUser } from "../api/users";
 
 const ROLE_TONE: Record<string, "red" | "blue" | "slate" | "amber" | "green" | "violet"> = {
-  admin: "red", 
-  manager: "blue", 
-  user: "slate",
-  officer: "amber",
-  requester: "green",
-  evaluator: "violet",
-  storekeeper: "blue",
-  finance: "amber",
-  auditor: "red",
+  admin: "red",
+  procurement_user: "blue",
 };
 
 const ROLE_LABEL: Record<string, { fa: string; ps: string; en: string }> = {
-  admin: { fa: "مدیر / Admin", ps: "مدیر / Admin", en: "Admin" },
-  manager: { fa: "مدیر / Manager", ps: "مدیر / Manager", en: "Manager" },
-  user: { fa: "کاروونکی / User", ps: "کاروونکی / User", en: "User" },
-  officer: { fa: "افسر / Officer", ps: "افسر / Officer", en: "Officer" },
-  requester: { fa: "غواړونکی / Requester", ps: "غواړونکی / Requester", en: "Requester" },
-  evaluator: { fa: "ارزش کوونکی / Evaluator", ps: "ارزش کوونکی / Evaluator", en: "Evaluator" },
-  storekeeper: { fa: "انبار دار / Storekeeper", ps: "انبار دار / Storekeeper", en: "Storekeeper" },
-  finance: { fa: "مالیه / Finance", ps: "مالیه / Finance", en: "Finance" },
-  auditor: { fa: "څارګر / Auditor", ps: "څارګر / Auditor", en: "Auditor" },
+  admin: { fa: "مدیر سیستم / System Administrator", ps: "سیستم ایډمن / System Administrator", en: "System Administrator" },
+  procurement_user: { fa: "کاربر تدارکات / Procurement User", ps: "د تدارکاتو کاروونکی / Procurement User", en: "Procurement User" },
 };
 
 export default function Users() {
@@ -197,7 +183,7 @@ function UserForm({ initial, existingUsers, onClose, onSave }: { initial?: ApiUs
       username: "",
       name: "",
       email: "",
-      role: "user",
+      role: "procurement_user",
       active: true,
     }
   );
@@ -245,15 +231,8 @@ function UserForm({ initial, existingUsers, onClose, onSave }: { initial?: ApiUs
         </Field>
         <Field label={lang === "en" ? "Role" : lang === "ps" ? "رول" : "نقش"} required>
           <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            <option value="user">{lang === "en" ? "User" : lang === "ps" ? "کاروونکی" : "کاربر"}</option>
-            <option value="manager">{lang === "en" ? "Manager" : lang === "ps" ? "مدیر" : "مدیر"}</option>
-            <option value="admin">{lang === "en" ? "System Admin" : lang === "ps" ? "سیستم مدیر" : "سیستم مدیر"}</option>
-            <option value="officer">{lang === "en" ? "Officer" : lang === "ps" ? "افسر" : "افسر"}</option>
-            <option value="requester">{lang === "en" ? "Requester" : lang === "ps" ? "غواړونکی" : "درخواست‌دهنده"}</option>
-            <option value="evaluator">{lang === "en" ? "Evaluator" : lang === "ps" ? "ارزش کوونکی" : "ارزشیاب"}</option>
-            <option value="storekeeper">{lang === "en" ? "Storekeeper" : lang === "ps" ? "انبار دار" : "انباردار"}</option>
-            <option value="finance">{lang === "en" ? "Finance" : lang === "ps" ? "مالیه" : "مالی"}</option>
-            <option value="auditor">{lang === "en" ? "Auditor" : lang === "ps" ? "څارګر" : "حسابرس"}</option>
+            <option value="procurement_user">{lang === "en" ? "Procurement User" : lang === "ps" ? "د تدارکاتو کاروونکی" : "کاربر تدارکات"}</option>
+            <option value="admin">{lang === "en" ? "System Administrator" : lang === "ps" ? "سیستم ایډمن" : "مدیر سیستم"}</option>
           </Select>
         </Field>
         <div className="sm:col-span-2">

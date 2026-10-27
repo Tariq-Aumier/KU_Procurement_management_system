@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -69,7 +70,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255|unique:users',
             'password' => ['required', 'string', 'min:8', 'regex:/[A-Z]/', 'regex:/[a-z]/', 'regex:/[0-9]/'],
-            'role' => ['required', Rule::in(['admin', 'manager', 'officer', 'requester', 'evaluator', 'storekeeper', 'finance', 'auditor', 'user'])],
+            'role' => ['required', Rule::in([User::ROLE_ADMIN, User::ROLE_PROCUREMENT_USER])],
             'active' => 'sometimes|boolean',
             'office_id' => 'nullable|exists:offices,id',
         ]);
@@ -79,6 +80,13 @@ class UserController extends Controller
 
         $user = User::create($data);
         unset($user->password);
+
+        // Log audit
+        $this->logAudit('user_created', $user->id, [
+            'username' => $user->username,
+            'role' => $user->role,
+            'created_by' => $request->user()->id,
+        ]);
 
         return response()->json(['data' => $user], 201);
     }
@@ -92,10 +100,12 @@ class UserController extends Controller
             'name' => 'sometimes|string|max:255',
             'email' => 'nullable|email|max:255|unique:users,email,' . $id,
             'password' => ['sometimes', 'string', 'min:8', 'regex:/[A-Z]/', 'regex:/[a-z]/', 'regex:/[0-9]/'],
-            'role' => ['sometimes', Rule::in(['admin', 'manager', 'officer', 'requester', 'evaluator', 'storekeeper', 'finance', 'auditor', 'user'])],
+            'role' => ['sometimes', Rule::in([User::ROLE_ADMIN, User::ROLE_PROCUREMENT_USER])],
             'active' => 'sometimes|boolean',
             'office_id' => 'nullable|exists:offices,id',
         ]);
+
+        $oldData = $user->only(['role', 'active', 'office_id']);
 
         if (isset($data['password'])) {
             $data['password'] = Hash::make($data['password']);
@@ -103,6 +113,23 @@ class UserController extends Controller
 
         $user->update($data);
         unset($user->password);
+
+        // Log audit if role or active status changed
+        if (isset($data['role']) && $data['role'] !== $oldData['role']) {
+            $this->logAudit('user_role_changed', $user->id, [
+                'old_role' => $oldData['role'],
+                'new_role' => $data['role'],
+                'changed_by' => $request->user()->id,
+            ]);
+        }
+
+        if (isset($data['active']) && $data['active'] !== $oldData['active']) {
+            $this->logAudit('user_status_changed', $user->id, [
+                'old_status' => $oldData['active'] ? 'active' : 'inactive',
+                'new_status' => $data['active'] ? 'active' : 'inactive',
+                'changed_by' => $request->user()->id,
+            ]);
+        }
 
         return response()->json(['data' => $user->fresh()]);
     }
@@ -156,8 +183,30 @@ class UserController extends Controller
             ], 422);
         }
 
+        // Prevent deactivating the last active admin
+        if ($user->isAdmin() && $user->isActive()) {
+            $activeAdminCount = User::where('role', User::ROLE_ADMIN)
+                                  ->where('active', true)
+                                  ->where('id', '!=', $user->id)
+                                  ->count();
+
+            if ($activeAdminCount === 0) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'CANNOT_DEACTIVATE_LAST_ADMIN',
+                        'message' => 'Cannot deactivate the last active System Administrator.'
+                    ]
+                ], 422);
+            }
+        }
+
         $user->update(['active' => false]);
         unset($user->password);
+
+        $this->logAudit('user_deactivated', $user->id, [
+            'username' => $user->username,
+            'deactivated_by' => $request->user()->id,
+        ]);
 
         return response()->json(['data' => $user->fresh()]);
     }
@@ -194,15 +243,8 @@ class UserController extends Controller
         $inactive = User::where('active', false)->count();
 
         $roles = [
-            'admin' => User::where('role', 'admin')->count(),
-            'manager' => User::where('role', 'manager')->count(),
-            'officer' => User::where('role', 'officer')->count(),
-            'requester' => User::where('role', 'requester')->count(),
-            'evaluator' => User::where('role', 'evaluator')->count(),
-            'storekeeper' => User::where('role', 'storekeeper')->count(),
-            'finance' => User::where('role', 'finance')->count(),
-            'auditor' => User::where('role', 'auditor')->count(),
-            'user' => User::where('role', 'user')->count(),
+            'admin' => User::where('role', User::ROLE_ADMIN)->count(),
+            'procurement_user' => User::where('role', User::ROLE_PROCUREMENT_USER)->count(),
         ];
 
         return response()->json([
@@ -213,5 +255,52 @@ class UserController extends Controller
                 'roles' => $roles,
             ]
         ]);
+    }
+
+    public function resetPassword(Request $request, int $id)
+    {
+        $user = User::findOrFail($id);
+
+        $data = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'regex:/[A-Z]/', 'regex:/[a-z]/', 'regex:/[0-9]/'],
+            'force_change' => 'sometimes|boolean',
+        ]);
+
+        $user->update([
+            'password' => Hash::make($data['password']),
+            'password_changed_at' => null, // Force password change on next login if force_change is true
+        ]);
+
+        // Revoke all user sessions by deleting their API tokens
+        DB::table('api_tokens')->where('user_id', $user->id)->delete();
+
+        unset($user->password);
+
+        $this->logAudit('user_password_reset', $user->id, [
+            'username' => $user->username,
+            'reset_by' => $request->user()->id,
+            'force_change' => $data['force_change'] ?? false,
+        ]);
+
+        return response()->json(['data' => $user->fresh()]);
+    }
+
+    private function logAudit(string $action, int $targetUserId, array $metadata = [])
+    {
+        try {
+            DB::table('audit_logs')->insert([
+                'user_id' => auth()->id(),
+                'action' => $action,
+                'target_type' => 'user',
+                'target_id' => $targetUserId,
+                'metadata' => json_encode($metadata),
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'created_at' => now(),
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't fail the main operation
+            \Log::error('Failed to log audit: ' . $e->getMessage());
+        }
     }
 }

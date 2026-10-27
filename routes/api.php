@@ -113,8 +113,8 @@ Route::prefix('v1')->group(function () {
             Route::post('{id}/reject',[VendorController::class,'reject']);
             Route::get('statistics',[VendorController::class,'statistics']);
         });
-        // Users Routes
-        Route::prefix('users-model')->group(function () {
+        // Users Routes (Admin only)
+        Route::prefix('users-model')->middleware('role:admin')->group(function () {
             Route::get('/',[UserController::class,'index']);
             Route::post('/',[UserController::class,'store']);
             Route::get('{id}',[UserController::class,'show']);
@@ -123,13 +123,13 @@ Route::prefix('v1')->group(function () {
             Route::post('{id}/restore',[UserController::class,'restore']);
             Route::post('{id}/activate',[UserController::class,'activate']);
             Route::post('{id}/deactivate',[UserController::class,'deactivate']);
-            Route::post('{id}/change-password',[UserController::class,'changePassword']);
+            Route::post('{id}/reset-password',[UserController::class,'resetPassword']);
             Route::get('statistics',[UserController::class,'statistics']);
         });
         // Reports Routes
         Route::get('reports-model',[ReportsController::class,'index']);
-        // Recycle Bin Routes
-        Route::prefix('recycle-bin')->group(function () {
+        // Recycle Bin Routes (Admin only)
+        Route::prefix('recycle-bin')->middleware('role:admin')->group(function () {
             Route::get('/',[RecycleBinController::class,'index']);
             Route::get('statistics',[RecycleBinController::class,'statistics']);
             Route::post('restore/{type}/{id}',[RecycleBinController::class,'restore']);

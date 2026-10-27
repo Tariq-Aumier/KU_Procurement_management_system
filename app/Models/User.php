@@ -14,6 +14,10 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
 
+    // Role constants
+    const ROLE_ADMIN = 'admin';
+    const ROLE_PROCUREMENT_USER = 'procurement_user';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -50,6 +54,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'password_changed_at' => 'datetime',
             'active' => 'boolean',
             'password' => 'hashed',
         ];
@@ -63,5 +68,25 @@ class User extends Authenticatable
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function isProcurementUser(): bool
+    {
+        return $this->role === self::ROLE_PROCUREMENT_USER;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->active === true;
+    }
+
+    public function hasAccess(array $allowedRoles): bool
+    {
+        return in_array($this->role, $allowedRoles) && $this->isActive();
     }
 }
