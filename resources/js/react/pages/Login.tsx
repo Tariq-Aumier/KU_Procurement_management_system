@@ -64,7 +64,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-stretch dark:bg-slate-900" dir={isRTL ? "rtl" : "ltr"}>
       {/* Left brand panel */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-brand-700 via-brand-800 to-slate-900 text-white p-12 relative overflow-hidden">
+      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-brand-700 via-brand-800 to-slate-900 text-white p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10" aria-hidden>
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -106,8 +106,8 @@ export default function Login() {
       </div>
 
       {/* Right login form */}
-      <div className="w-full lg:w-[480px] flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
-        <div className="w-full max-w-sm">
+      <div className="w-1/2 flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
+        <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-8">
             <div className="w-11 h-11 rounded-xl bg-brand-600 text-white flex items-center justify-center text-xl">📋</div>
             <div>

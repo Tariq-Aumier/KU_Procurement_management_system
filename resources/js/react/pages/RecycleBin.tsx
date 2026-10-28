@@ -23,6 +23,7 @@ const TYPE_LABELS: Record<string, { fa: string; ps: string; en: string }> = {
   'inventory-items': { fa: "موجودی انبار / Inventory", ps: "موجودی انبار / Inventory", en: "Inventory" },
   'office-categories': { fa: "دسته‌بندی دفتر / Office Category", ps: "دسته دفتر / Office Category", en: "Office Category" },
   offices: { fa: "دفتر / Office", ps: "دفتر / Office", en: "Office" },
+  'inventory-locations': { fa: "مکان انبار / Inventory Location", ps: "مکان انبار / Inventory Location", en: "Inventory Location" },
   'procurement-forms-rfq': { fa: "فرم درخواست قیمت / RFQ Form", ps: "فرم درخواست قیمت / RFQ Form", en: "RFQ Form" },
   'procurement-forms-m2': { fa: "فرم م-2 / M2 Form", ps: "فرم م-2 / M2 Form", en: "M2 Form" },
   'procurement-forms-evaluation': { fa: "فرم ارزیابی / Evaluation Form", ps: "فرم ارزیابی / Evaluation Form", en: "Evaluation Form" },
@@ -37,6 +38,7 @@ const TYPE_ICONS: Record<string, string> = {
   'inventory-items': "📦",
   'office-categories': "📁",
   offices: "🏢",
+  'inventory-locations': "📍",
   'procurement-forms-rfq': "📋",
   'procurement-forms-m2': "📝",
   'procurement-forms-evaluation': "📊",
@@ -49,7 +51,7 @@ export default function RecycleBin() {
   const [deletedItems, setDeletedItems] = useState<DeletedItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const RESOURCES = ['users', 'companies', 'contracts', 'procurement-orders', 'vendors', 'inventory-items', 'office-categories', 'offices', 'procurement-forms-rfq', 'procurement-forms-m2', 'procurement-forms-evaluation'];
+  const RESOURCES = ['users', 'companies', 'contracts', 'procurement-orders', 'vendors', 'inventory-items', 'office-categories', 'offices', 'inventory-locations', 'procurement-forms-rfq', 'procurement-forms-m2', 'procurement-forms-evaluation'];
 
   // Fetch deleted items from backend
   const fetchDeletedItems = async () => {
@@ -103,6 +105,7 @@ export default function RecycleBin() {
       case 'inventory-items': return item.name;
       case 'office-categories': return item.name;
       case 'offices': return item.name;
+      case 'inventory-locations': return item.name;
       case 'procurement-forms-rfq': return item.number || item.id;
       case 'procurement-forms-m2': return item.sequence_number || item.id;
       case 'procurement-forms-evaluation': return item.reference_number || item.title || item.id;

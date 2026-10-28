@@ -47,6 +47,23 @@ class ContractController extends Controller
         ]);
     }
 
+    public function trashed(Request $request)
+    {
+        $query = Contract::onlyTrashed()->with(['company']);
+
+        $size = min(max((int) $request->input('pageSize', 25), 1), 100);
+        $contracts = $query->orderByDesc('deleted_at')->paginate($size);
+
+        return response()->json([
+            'data' => $contracts->items(),
+            'meta' => [
+                'page' => $contracts->currentPage(),
+                'pageSize' => $contracts->perPage(),
+                'total' => $contracts->total(),
+            ],
+        ]);
+    }
+
     public function show(Request $request, int $id)
     {
         $contract = Contract::with(['company', 'award', 'progressUpdates.submittedBy'])
@@ -113,6 +130,14 @@ class ContractController extends Controller
         $contract->restore();
 
         return response()->json(['data' => $contract]);
+    }
+
+    public function forceDelete(Request $request, int $id)
+    {
+        $contract = Contract::withTrashed()->findOrFail($id);
+        $contract->forceDelete();
+
+        return response()->noContent();
     }
 
     public function updateProgress(Request $request, int $id)

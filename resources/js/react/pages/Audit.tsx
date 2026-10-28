@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useI18n } from "../contexts/I18nContext";
-import { Card, Input, Badge, EmptyState, Select } from "../components/ui";
+import { Card, Input, Badge, EmptyState, Select, Button } from "../components/ui";
 import { auditLogsApi, type AuditLog as ApiAuditLog } from "../api/auditLogs";
 
 const ACTION_TONE: Record<string, "green" | "blue" | "amber" | "red" | "violet" | "slate"> = {
@@ -25,6 +25,8 @@ export default function Audit() {
   const [q, setQ] = useState("");
   const [entity, setEntity] = useState("all");
   const [action, setAction] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
 
   const fetchData = async () => {
     try {
@@ -59,6 +61,13 @@ export default function Audit() {
     });
   }, [auditLogs, q, entity, action]);
 
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [q, entity, action]);
+
   return (
     <div className="space-y-5">
       <Card className="p-4">
@@ -89,9 +98,10 @@ export default function Audit() {
         </div>
       ) : (
       <Card>
-        {filtered.length === 0 ? (
+        {paginatedData.length === 0 ? (
           <EmptyState icon="📜" title={lang === "en" ? "No logs found" : lang === "ps" ? "هیڅ لاګ نشته" : "هیچ لاگی یافت نشد"} />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 uppercase">
@@ -104,7 +114,7 @@ export default function Audit() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((l) => (
+                {paginatedData.map((l) => (
                   <tr key={l.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 text-xs text-slate-600 tabular-nums">{new Date(l.created_at).toLocaleString()}</td>
                     <td className="px-4 py-3 font-medium text-slate-900">@{l.username}</td>
@@ -116,6 +126,45 @@ export default function Audit() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                {lang === "en" ? `Page ${currentPage} of ${totalPages}` :
+                 lang === "ps" ? `پاڼه ${currentPage} له ${totalPages}` :
+                 `صفحه ${currentPage} از ${totalPages}`}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  {lang === "en" ? "Previous" : lang === "ps" ? "مخکینی" : "قبلی"}
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <Button
+                    key={page}
+                    size="sm"
+                    variant={currentPage === page ? "primary" : "ghost"}
+                    onClick={() => setCurrentPage(page)}
+                    className="min-w-[32px]"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  {lang === "en" ? "Next" : lang === "ps" ? "راتلونکی" : "بعدی"}
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </Card>
       )}

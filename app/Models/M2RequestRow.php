@@ -16,16 +16,15 @@ class M2RequestRow extends Model
         'unit',
         'quantity',
         'unit_price',
-        'estimated_amount',
-        'notes',
-        'requesting_branch',
-        'supplier',
+        'estimated_price',
+        'paid_price',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:3',
         'unit_price' => 'decimal:2',
-        'estimated_amount' => 'decimal:2',
+        'estimated_price' => 'decimal:2',
+        'paid_price' => 'decimal:2',
     ];
 
     public function m2Form()

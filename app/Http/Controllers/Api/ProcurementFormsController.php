@@ -13,6 +13,8 @@ use App\Models\EvaluationBidder;
 use App\Models\EvaluationBidderPrice;
 use App\Models\EvaluationCommitteeMember;
 use App\Models\FormSubmission;
+use App\Models\M3HForm;
+use App\Models\M3HItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -152,121 +154,160 @@ class ProcurementFormsController extends Controller
     }
 
     // M2 Forms
-    public function m2Index()
+    public function m2Index(Request $request)
     {
-        $m2Forms = M2Form::with(['requestRows', 'createdBy'])->get();
-        return response()->json(['data' => $m2Forms]);
+        $perPage = $request->input('per_page', 7);
+        $page = $request->input('page', 1);
+
+        $m2Forms = M2Form::with(['requestRows', 'createdBy'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => $m2Forms->items(),
+            'pagination' => [
+                'current_page' => $m2Forms->currentPage(),
+                'last_page' => $m2Forms->lastPage(),
+                'per_page' => $m2Forms->perPage(),
+                'total' => $m2Forms->total(),
+            ]
+        ]);
     }
 
     public function m2Store(Request $request)
     {
-        $validated = $request->validate([
-            'sequence_number' => 'required|string',
-            'date' => 'required|date',
-            'requesting_department' => 'required|string',
-            'approval_department' => 'required|string',
-            'fund_source' => 'required|string',
-            'budget_code' => 'required|string',
-            'rows' => 'array',
-            'rows.*.description' => 'required|string',
-            'rows.*.unit' => 'required|string',
-            'rows.*.quantity' => 'required|numeric',
-            'rows.*.unit_price' => 'required|numeric',
-            'rows.*.estimated_amount' => 'required|numeric',
-            'rows.*.notes' => 'nullable|string',
-            'rows.*.requesting_branch' => 'nullable|string',
-            'rows.*.supplier' => 'nullable|string',
-        ]);
-
-        return DB::transaction(function () use ($validated, $request) {
-            $m2Form = M2Form::create([
-                'sequence_number' => $validated['sequence_number'],
-                'date' => $validated['date'],
-                'requesting_department' => $validated['requesting_department'],
-                'approval_department' => $validated['approval_department'],
-                'fund_source' => $validated['fund_source'],
-                'budget_code' => $validated['budget_code'],
-                'total_amount' => 0,
-                'status' => 'draft',
-                'created_by' => $request->user()->id,
+        try {
+            $validated = $request->validate([
+                'serial_number' => 'required|string|unique:m2_forms,serial_number',
+                'date' => 'required|date',
+                'requester_person' => 'nullable|string',
+                'requester_branch' => 'nullable|string',
+                'request_number' => 'nullable|string',
+                'total_amount' => 'required|numeric',
+                'amount_in_words' => 'nullable|string',
+                'purchase_from' => 'nullable|string',
+                'purchase_committee_location' => 'nullable|string',
+                'purchase_committee_date' => 'nullable|date',
+                'approval_officer' => 'nullable|string',
+                'calculation_branch' => 'nullable|string',
+                'allocation_number' => 'nullable|string',
+                'private_number' => 'nullable|string',
+                'commitment_amount' => 'nullable|numeric',
+                'payment_order' => 'nullable|string',
+                'description' => 'nullable|string',
+                'm16_certifier' => 'nullable|string',
+                'm12_certifier' => 'nullable|string',
+                'status' => 'sometimes|in:draft,submitted,approved,rejected,cancelled',
+                'items' => 'sometimes|array',
             ]);
 
-            $totalAmount = 0;
-            foreach ($validated['rows'] as $index => $row) {
-                $lineTotal = $row['quantity'] * $row['unit_price'];
-                $totalAmount += $lineTotal;
-
-                M2RequestRow::create([
-                    'm2_form_id' => $m2Form->id,
-                    'line_no' => $index + 1,
-                    'description' => $row['description'],
-                    'unit' => $row['unit'],
-                    'quantity' => $row['quantity'],
-                    'unit_price' => $row['unit_price'],
-                    'estimated_amount' => $row['estimated_amount'],
-                    'notes' => $row['notes'] ?? null,
-                    'requesting_branch' => $row['requesting_branch'] ?? null,
-                    'supplier' => $row['supplier'] ?? null,
+            return DB::transaction(function () use ($validated, $request) {
+                $m2Form = M2Form::create([
+                    'serial_number' => $validated['serial_number'],
+                    'date' => $validated['date'],
+                    'requester_person' => $validated['requester_person'] ?? null,
+                    'requester_branch' => $validated['requester_branch'] ?? null,
+                    'request_number' => $validated['request_number'] ?? null,
+                    'total_amount' => $validated['total_amount'],
+                    'amount_in_words' => $validated['amount_in_words'] ?? null,
+                    'purchase_from' => $validated['purchase_from'] ?? null,
+                    'purchase_committee_location' => $validated['purchase_committee_location'] ?? null,
+                    'purchase_committee_date' => $validated['purchase_committee_date'] ?? null,
+                    'approval_officer' => $validated['approval_officer'] ?? null,
+                    'calculation_branch' => $validated['calculation_branch'] ?? null,
+                    'allocation_number' => $validated['allocation_number'] ?? null,
+                    'private_number' => $validated['private_number'] ?? null,
+                    'commitment_amount' => $validated['commitment_amount'] ?? 0,
+                    'payment_order' => $validated['payment_order'] ?? null,
+                    'description' => $validated['description'] ?? null,
+                    'm16_certifier' => $validated['m16_certifier'] ?? null,
+                    'm12_certifier' => $validated['m12_certifier'] ?? null,
+                    'status' => $validated['status'] ?? 'draft',
+                    'created_by' => $request->user()->id,
                 ]);
-            }
 
-            $m2Form->update(['total_amount' => $totalAmount]);
+                if (isset($validated['items']) && is_array($validated['items']) && count($validated['items']) > 0) {
+                    foreach ($validated['items'] as $index => $item) {
+                        M2RequestRow::create([
+                            'm2_form_id' => $m2Form->id,
+                            'line_no' => $item['line_no'] ?? ($index + 1),
+                            'description' => $item['description'] ?? '',
+                            'unit' => $item['unit'] ?? '',
+                            'quantity' => $item['quantity'] ?? 0,
+                            'unit_price' => $item['rate'] ?? 0,
+                            'estimated_price' => $item['estimated_price'] ?? 0,
+                            'paid_price' => $item['paid_price'] ?? null,
+                        ]);
+                    }
+                }
 
-            return response()->json(['data' => $m2Form->load('requestRows')], 201);
-        });
+                return response()->json(['data' => $m2Form->load('requestRows')], 201);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     public function m2Show($id)
     {
         $m2Form = M2Form::with(['requestRows', 'createdBy'])->findOrFail($id);
-        return response()->json(['data' => $m2Form]);
+        return response()->json(['data' => $m2Form, 'request_rows' => $m2Form->requestRows]);
     }
 
     public function m2Update(Request $request, $id)
     {
-        $m2Form = M2Form::findOrFail($id);
-        
-        $validated = $request->validate([
-            'sequence_number' => 'sometimes|string',
-            'date' => 'sometimes|date',
-            'requesting_department' => 'sometimes|string',
-            'approval_department' => 'sometimes|string',
-            'fund_source' => 'sometimes|string',
-            'budget_code' => 'sometimes|string',
-            'status' => 'sometimes|in:draft,submitted,approved',
-            'rows' => 'sometimes|array',
-        ]);
+        try {
+            $m2Form = M2Form::findOrFail($id);
 
-        return DB::transaction(function () use ($m2Form, $validated, $request) {
-            $m2Form->update($validated);
+            $validated = $request->validate([
+                'serial_number' => 'sometimes|string|unique:m2_forms,serial_number,' . $id,
+                'date' => 'sometimes|date',
+                'requester_person' => 'nullable|string',
+                'requester_branch' => 'nullable|string',
+                'request_number' => 'nullable|string',
+                'total_amount' => 'sometimes|numeric',
+                'amount_in_words' => 'nullable|string',
+                'purchase_from' => 'nullable|string',
+                'purchase_committee_location' => 'nullable|string',
+                'purchase_committee_date' => 'nullable|date',
+                'approval_officer' => 'nullable|string',
+                'calculation_branch' => 'nullable|string',
+                'allocation_number' => 'nullable|string',
+                'private_number' => 'nullable|string',
+                'commitment_amount' => 'nullable|numeric',
+                'payment_order' => 'nullable|string',
+                'description' => 'nullable|string',
+                'm16_certifier' => 'nullable|string',
+                'm12_certifier' => 'nullable|string',
+                'status' => 'sometimes|in:draft,submitted,approved,rejected,cancelled',
+                'items' => 'sometimes|array',
+            ]);
 
-            if (isset($validated['rows'])) {
-                $m2Form->requestRows()->delete();
-                $totalAmount = 0;
-                
-                foreach ($validated['rows'] as $index => $row) {
-                    $lineTotal = $row['quantity'] * $row['unit_price'];
-                    $totalAmount += $lineTotal;
+            return DB::transaction(function () use ($m2Form, $validated) {
+                $m2Form->update($validated);
 
-                    M2RequestRow::create([
-                        'm2_form_id' => $m2Form->id,
-                        'line_no' => $index + 1,
-                        'description' => $row['description'],
-                        'unit' => $row['unit'],
-                        'quantity' => $row['quantity'],
-                        'unit_price' => $row['unit_price'],
-                        'estimated_amount' => $row['estimated_amount'],
-                        'notes' => $row['notes'] ?? null,
-                        'requesting_branch' => $row['requesting_branch'] ?? null,
-                        'supplier' => $row['supplier'] ?? null,
-                    ]);
+                if (isset($validated['items']) && is_array($validated['items'])) {
+                    $m2Form->requestRows()->delete();
+
+                    foreach ($validated['items'] as $index => $item) {
+                        M2RequestRow::create([
+                            'm2_form_id' => $m2Form->id,
+                            'line_no' => $item['line_no'] ?? ($index + 1),
+                            'description' => $item['description'] ?? '',
+                            'unit' => $item['unit'] ?? '',
+                            'quantity' => $item['quantity'] ?? 0,
+                            'unit_price' => $item['rate'] ?? 0,
+                            'estimated_price' => $item['estimated_price'] ?? 0,
+                            'paid_price' => $item['paid_price'] ?? null,
+                        ]);
+                    }
                 }
 
-                $m2Form->update(['total_amount' => $totalAmount]);
-            }
-
-            return response()->json(['data' => $m2Form->load('requestRows')]);
-        });
+                return response()->json(['data' => $m2Form->load('requestRows')]);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     public function m2Destroy($id)
@@ -566,6 +607,211 @@ class ProcurementFormsController extends Controller
     {
         $submission = FormSubmission::findOrFail($id);
         $submission->delete();
+        return response()->noContent();
+    }
+
+    // M-3 (H) Forms (بیع مطلق)
+    public function m3hIndex(Request $request)
+    {
+        $perPage = $request->input('per_page', 7);
+        $page = $request->input('page', 1);
+
+        $m3hForms = M3HForm::with(['items', 'createdBy'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => $m3hForms->items(),
+            'pagination' => [
+                'current_page' => $m3hForms->currentPage(),
+                'last_page' => $m3hForms->lastPage(),
+                'per_page' => $m3hForms->perPage(),
+                'total' => $m3hForms->total(),
+            ]
+        ]);
+    }
+
+    public function m3hStore(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'order_number' => 'required|string|unique:m3h_forms,order_number',
+                'issue_date' => 'required|date',
+                'purchasing_ministry' => 'nullable|string',
+                'purchase_request_number' => 'nullable|string',
+                'contract_id_number' => 'nullable|string',
+                'org_code' => 'nullable|string',
+                'project_code' => 'nullable|string',
+                'program_code' => 'nullable|string',
+                'fund_code' => 'nullable|string',
+                'type_code' => 'nullable|string',
+                'classification_code' => 'nullable|string',
+                'reason_code' => 'nullable|string',
+                'item_type_code' => 'nullable|string',
+                'delivery_date' => 'nullable|date',
+                'delivery_place' => 'nullable|string',
+                'total_price' => 'required|numeric',
+                'payment_deferred' => 'sometimes|boolean',
+                'payment_installments' => 'nullable|string',
+                'payment_immediate' => 'sometimes|boolean',
+                'receipt_report_date' => 'nullable|date',
+                'receipt_report_number' => 'nullable|string',
+                'procurement_dept_signature' => 'nullable|string',
+                'procurement_dept_date' => 'nullable|date',
+                'registry_dept_signature' => 'nullable|string',
+                'registry_dept_date' => 'nullable|date',
+                'authorized_officer_signature' => 'nullable|string',
+                'authorized_officer_date' => 'nullable|date',
+                'contractor_signature' => 'nullable|string',
+                'contractor_date' => 'nullable|date',
+                'financial_controller_signature' => 'nullable|string',
+                'financial_controller_date' => 'nullable|date',
+                'remarks' => 'nullable|string',
+                'status' => 'sometimes|in:draft,submitted,approved,rejected,cancelled',
+                'items' => 'sometimes|array',
+            ]);
+
+            return DB::transaction(function () use ($validated, $request) {
+                $m3hForm = M3HForm::create([
+                    'order_number' => $validated['order_number'],
+                    'issue_date' => $validated['issue_date'],
+                    'purchasing_ministry' => $validated['purchasing_ministry'] ?? null,
+                    'purchase_request_number' => $validated['purchase_request_number'] ?? null,
+                    'contract_id_number' => $validated['contract_id_number'] ?? null,
+                    'org_code' => $validated['org_code'] ?? null,
+                    'project_code' => $validated['project_code'] ?? null,
+                    'program_code' => $validated['program_code'] ?? null,
+                    'fund_code' => $validated['fund_code'] ?? null,
+                    'type_code' => $validated['type_code'] ?? null,
+                    'classification_code' => $validated['classification_code'] ?? null,
+                    'reason_code' => $validated['reason_code'] ?? null,
+                    'item_type_code' => $validated['item_type_code'] ?? null,
+                    'delivery_date' => $validated['delivery_date'] ?? null,
+                    'delivery_place' => $validated['delivery_place'] ?? null,
+                    'total_price' => $validated['total_price'],
+                    'payment_deferred' => $validated['payment_deferred'] ?? false,
+                    'payment_installments' => $validated['payment_installments'] ?? null,
+                    'payment_immediate' => $validated['payment_immediate'] ?? false,
+                    'receipt_report_date' => $validated['receipt_report_date'] ?? null,
+                    'receipt_report_number' => $validated['receipt_report_number'] ?? null,
+                    'procurement_dept_signature' => $validated['procurement_dept_signature'] ?? null,
+                    'procurement_dept_date' => $validated['procurement_dept_date'] ?? null,
+                    'registry_dept_signature' => $validated['registry_dept_signature'] ?? null,
+                    'registry_dept_date' => $validated['registry_dept_date'] ?? null,
+                    'authorized_officer_signature' => $validated['authorized_officer_signature'] ?? null,
+                    'authorized_officer_date' => $validated['authorized_officer_date'] ?? null,
+                    'contractor_signature' => $validated['contractor_signature'] ?? null,
+                    'contractor_date' => $validated['contractor_date'] ?? null,
+                    'financial_controller_signature' => $validated['financial_controller_signature'] ?? null,
+                    'financial_controller_date' => $validated['financial_controller_date'] ?? null,
+                    'remarks' => $validated['remarks'] ?? null,
+                    'status' => $validated['status'] ?? 'draft',
+                    'created_by' => $request->user()->id,
+                ]);
+
+                if (isset($validated['items']) && is_array($validated['items']) && count($validated['items']) > 0) {
+                    foreach ($validated['items'] as $index => $item) {
+                        M3HItem::create([
+                            'm3h_form_id' => $m3hForm->id,
+                            'line_no' => $item['line_no'] ?? ($index + 1),
+                            'description' => $item['description'] ?? '',
+                            'type_code' => $item['type_code'] ?? '',
+                            'classification_code' => $item['classification_code'] ?? '',
+                            'quantity' => $item['quantity'] ?? 0,
+                            'unit' => $item['unit'] ?? '',
+                            'unit_price' => $item['unit_price'] ?? 0,
+                            'total_price' => $item['total_price'] ?? 0,
+                        ]);
+                    }
+                }
+
+                return response()->json(['data' => $m3hForm->load('items')], 201);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function m3hShow($id)
+    {
+        $m3hForm = M3HForm::with(['items', 'createdBy'])->findOrFail($id);
+        return response()->json(['data' => $m3hForm, 'items' => $m3hForm->items]);
+    }
+
+    public function m3hUpdate(Request $request, $id)
+    {
+        try {
+            $m3hForm = M3HForm::findOrFail($id);
+
+            $validated = $request->validate([
+                'order_number' => 'sometimes|string|unique:m3h_forms,order_number,' . $id,
+                'issue_date' => 'sometimes|date',
+                'purchasing_ministry' => 'nullable|string',
+                'purchase_request_number' => 'nullable|string',
+                'contract_id_number' => 'nullable|string',
+                'org_code' => 'nullable|string',
+                'project_code' => 'nullable|string',
+                'program_code' => 'nullable|string',
+                'fund_code' => 'nullable|string',
+                'type_code' => 'nullable|string',
+                'classification_code' => 'nullable|string',
+                'reason_code' => 'nullable|string',
+                'item_type_code' => 'nullable|string',
+                'delivery_date' => 'nullable|date',
+                'delivery_place' => 'nullable|string',
+                'total_price' => 'sometimes|numeric',
+                'payment_deferred' => 'sometimes|boolean',
+                'payment_installments' => 'nullable|string',
+                'payment_immediate' => 'sometimes|boolean',
+                'receipt_report_date' => 'nullable|date',
+                'receipt_report_number' => 'nullable|string',
+                'procurement_dept_signature' => 'nullable|string',
+                'procurement_dept_date' => 'nullable|date',
+                'registry_dept_signature' => 'nullable|string',
+                'registry_dept_date' => 'nullable|date',
+                'authorized_officer_signature' => 'nullable|string',
+                'authorized_officer_date' => 'nullable|date',
+                'contractor_signature' => 'nullable|string',
+                'contractor_date' => 'nullable|date',
+                'financial_controller_signature' => 'nullable|string',
+                'financial_controller_date' => 'nullable|date',
+                'remarks' => 'nullable|string',
+                'status' => 'sometimes|in:draft,submitted,approved,rejected,cancelled',
+                'items' => 'sometimes|array',
+            ]);
+
+            return DB::transaction(function () use ($m3hForm, $validated) {
+                $m3hForm->update($validated);
+
+                if (isset($validated['items']) && is_array($validated['items'])) {
+                    $m3hForm->items()->delete();
+
+                    foreach ($validated['items'] as $index => $item) {
+                        M3HItem::create([
+                            'm3h_form_id' => $m3hForm->id,
+                            'line_no' => $item['line_no'] ?? ($index + 1),
+                            'description' => $item['description'] ?? '',
+                            'type_code' => $item['type_code'] ?? '',
+                            'classification_code' => $item['classification_code'] ?? '',
+                            'quantity' => $item['quantity'] ?? 0,
+                            'unit' => $item['unit'] ?? '',
+                            'unit_price' => $item['unit_price'] ?? 0,
+                            'total_price' => $item['total_price'] ?? 0,
+                        ]);
+                    }
+                }
+
+                return response()->json(['data' => $m3hForm->load('items')]);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function m3hDestroy($id)
+    {
+        $m3hForm = M3HForm::findOrFail($id);
+        $m3hForm->delete();
         return response()->noContent();
     }
 }

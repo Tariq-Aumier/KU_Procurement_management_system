@@ -27,8 +27,9 @@ export default function Vendors() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ApiVendor | null>(null);
   const [viewing, setViewing] = useState<ApiVendor | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<ApiVendor | null>(null);
   const [numberedView, setNumberedView] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   const fetchVendors = async () => {
     try {
@@ -57,6 +58,13 @@ export default function Vendors() {
     const s = q.toLowerCase();
     return v.account_no.toLowerCase().includes(s) || (v.tax_id && v.tax_id.toLowerCase().includes(s));
   });
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [q]);
 
   return (
     <div className="space-y-5">
@@ -92,7 +100,7 @@ export default function Vendors() {
               {lang === "en" ? "Retry" : lang === "ps" ? "بیاښه کړه" : "تلاش مجدد"}
             </Button>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : paginatedData.length === 0 ? (
           <EmptyState 
             icon="🤝" 
             title={lang === "en" ? "No vendors" : lang === "ps" ? "هیڅ وېنډر نشته" : "هیچ فروشنده‌ای وجود ندارد"} 
@@ -100,13 +108,14 @@ export default function Vendors() {
           />
         ) : numberedView ? (
           // Numbered list view
+          <>
           <div className="p-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-semibold text-lg text-slate-900 dark:text-slate-100">{lang === "en" ? "Vendor List" : lang === "ps" ? "لیست وېنډرونه" : "لیست فروشندگان"}</h3>
-              <Badge tone="violet">{filtered.length} {lang === "en" ? "registered" : lang === "ps" ? "ثبت شوي" : "ثبت شده"}</Badge>
+              <Badge tone="violet">{paginatedData.length} {lang === "en" ? "registered" : lang === "ps" ? "ثبت شوي" : "ثبت شده"}</Badge>
             </div>
             <ol className="list-decimal list-inside space-y-2 max-h-[600px] overflow-y-auto">
-              {filtered.map((v) => {
+              {paginatedData.map((v) => {
                 const company = companies.find(c => c.id === v.company_id);
                 return (
                 <li key={v.id} className="text-base p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded border-b border-slate-100 dark:border-slate-800">
@@ -123,14 +132,6 @@ export default function Vendors() {
                       <Button size="sm" variant="ghost" onClick={() => setEditing(v)}>
                         {lang === "en" ? "Edit" : lang === "ps" ? "سمول" : "ویرایش"}
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                        onClick={() => setConfirmDelete(v)}
-                      >
-                        {lang === "en" ? "Delete" : lang === "ps" ? "حذف" : "حذف"}
-                      </Button>
                     </div>
                   </div>
                 </li>
@@ -138,37 +139,77 @@ export default function Vendors() {
               })}
             </ol>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                {lang === "en" ? `Page ${currentPage} of ${totalPages}` :
+                 lang === "ps" ? `پاڼه ${currentPage} له ${totalPages}` :
+                 `صفحه ${currentPage} از ${totalPages}`}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  {lang === "en" ? "Previous" : lang === "ps" ? "مخکینی" : "قبلی"}
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <Button
+                    key={page}
+                    size="sm"
+                    variant={currentPage === page ? "primary" : "ghost"}
+                    onClick={() => setCurrentPage(page)}
+                    className="min-w-[32px]"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  {lang === "en" ? "Next" : lang === "ps" ? "راتلونکی" : "بعدی"}
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         ) : (
           // Original table view
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 uppercase dark:bg-slate-900/50 dark:border-slate-700 dark:text-slate-400">
                 <tr>
-                  <th className="text-right px-4 py-3 font-semibold">Account-N</th>
-                  <th className="text-right px-4 py-3 font-semibold">Company</th>
-                  <th className="text-right px-4 py-3 font-semibold">Status</th>
-                  <th className="text-right px-4 py-3 font-semibold">Tax ID</th>
-                  <th className="text-right px-4 py-3 font-semibold">Bank Account</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">Account-N</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">Company</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">Status</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">Tax ID</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">Bank Account</th>
                   <th className="text-left px-4 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map((v) => {
+                {paginatedData.map((v) => {
                   const company = companies.find(c => c.id === v.company_id);
                   return (
                   <tr key={v.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3">
+                    <td className="pl-12 pr-4 py-3">
                       <Badge tone="violet">{v.account_no}</Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="pl-12 pr-4 py-3">
                       <p className="font-medium text-slate-900 dark:text-slate-100">{company?.legal_name || 'Unknown'}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">{v.contact_info || '-'}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="pl-12 pr-4 py-3">
                       <Badge tone={v.verification_status === 'verified' ? 'green' : 'amber'}>{v.verification_status}</Badge>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{v.tax_id || '-'}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{v.bank_account || '-'}</td>
+                    <td className="pl-12 pr-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{v.tax_id || '-'}</td>
+                    <td className="pl-12 pr-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{v.bank_account || '-'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
                         <Button size="sm" variant="ghost" onClick={() => setViewing(v)}>
@@ -176,14 +217,6 @@ export default function Vendors() {
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => setEditing(v)}>
                           {lang === "en" ? "Edit" : lang === "ps" ? "سمول" : "ویرایش"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                          onClick={() => setConfirmDelete(v)}
-                        >
-                          {lang === "en" ? "Delete" : lang === "ps" ? "حذف" : "حذف"}
                         </Button>
                       </div>
                     </td>
@@ -193,6 +226,45 @@ export default function Vendors() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                {lang === "en" ? `Page ${currentPage} of ${totalPages}` :
+                 lang === "ps" ? `پاڼه ${currentPage} له ${totalPages}` :
+                 `صفحه ${currentPage} از ${totalPages}`}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  {lang === "en" ? "Previous" : lang === "ps" ? "مخکینی" : "قبلی"}
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <Button
+                    key={page}
+                    size="sm"
+                    variant={currentPage === page ? "primary" : "ghost"}
+                    onClick={() => setCurrentPage(page)}
+                    className="min-w-[32px]"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  {lang === "en" ? "Next" : lang === "ps" ? "راتلونکی" : "بعدی"}
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </Card>
 
@@ -223,25 +295,6 @@ export default function Vendors() {
           }}
         />
       )}
-
-      {/* Confirm Delete Modal */}
-      <ConfirmModal
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        onConfirm={async () => {
-          if (confirmDelete) {
-            try {
-              await vendorsApi.delete(confirmDelete.id);
-              await fetchVendors();
-              toast(lang === "en" ? "Deleted" : lang === "ps" ? "حذف شو" : "حذف شد", "info");
-            } catch (err) {
-              toast(lang === "en" ? "Failed to delete vendor" : lang === "ps" ? "د وېنډر حذول په کې پاتې شو" : "حذف فروشنده ناموفق بود", "error");
-            }
-          }
-        }}
-        title={lang === "en" ? "Confirm Delete" : lang === "ps" ? "د حذف تایید" : "تایید حذف"}
-        message={lang === "en" ? `Are you sure you want to delete vendor "${confirmDelete?.account_no}"?` : lang === "ps" ? `آیا د وېنډر "${confirmDelete?.account_no}" حذف کول غواړئ؟` : `آیا می‌خواهید فروشنده "${confirmDelete?.account_no}" را حذف کنید؟`}
-      />
 
       {/* View Vendor Modal */}
       <Modal

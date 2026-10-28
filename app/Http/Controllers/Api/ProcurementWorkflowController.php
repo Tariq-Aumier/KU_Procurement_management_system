@@ -164,10 +164,24 @@ class ProcurementWorkflowController extends Controller
 
     // ==================== Comparison Sheet Endpoints ====================
     
-    public function comparisonIndex()
+    public function comparisonIndex(Request $request)
     {
-        $sheets = ComparisonSheet::with(['items.unit', 'bidders', 'committeeMembers', 'requestingDepartment', 'certifier', 'approver1', 'approver2', 'createdBy'])->get();
-        return response()->json(['data' => $sheets]);
+        $page = $request->input('page', 1);
+        $perPage = 7;
+
+        $sheets = ComparisonSheet::with(['items.unit', 'bidders', 'committeeMembers', 'requestingDepartment', 'certifier', 'approver1', 'approver2', 'createdBy'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => $sheets->items(),
+            'pagination' => [
+                'current_page' => $sheets->currentPage(),
+                'last_page' => $sheets->lastPage(),
+                'total' => $sheets->total(),
+                'per_page' => $sheets->perPage(),
+            ]
+        ]);
     }
 
     public function comparisonStore(Request $request)
@@ -189,7 +203,10 @@ class ProcurementWorkflowController extends Controller
             'items.*.quantity' => 'required|numeric',
             'bidders' => 'array',
             'bidders.*.name' => 'required|string',
-            'committee_members' => 'array',
+            'bidders.*.address' => 'nullable|string',
+            'bidders.*.is_winner' => 'nullable|boolean',
+            'bidder_prices' => 'nullable|array',
+            'committee_members' => 'nullable|array',
             'committee_members.*.member_name' => 'required|string',
         ]);
 
@@ -208,9 +225,10 @@ class ProcurementWorkflowController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
+            $itemMap = [];
             if (isset($validated['items'])) {
                 foreach ($validated['items'] as $index => $item) {
-                    ComparisonItem::create([
+                    $comparisonItem = ComparisonItem::create([
                         'comparison_sheet_id' => $sheet->id,
                         'line_no' => $index + 1,
                         'item_name' => $item['item_name'],
@@ -218,16 +236,39 @@ class ProcurementWorkflowController extends Controller
                         'unit_id' => $item['unit_id'] ?? null,
                         'quantity' => $item['quantity'],
                     ]);
+                    $itemMap[$index] = $comparisonItem->id;
                 }
             }
 
+            $bidderMap = [];
             if (isset($validated['bidders'])) {
-                foreach ($validated['bidders'] as $bidder) {
+                foreach ($validated['bidders'] as $index => $bidder) {
                     $bidderModel = ComparisonBidder::create([
                         'comparison_sheet_id' => $sheet->id,
                         'name' => $bidder['name'],
                         'address' => $bidder['address'] ?? null,
+                        'is_winner' => $bidder['is_winner'] ?? false,
                     ]);
+                    $bidderMap[$index] = $bidderModel->id;
+                }
+            }
+
+            if (isset($validated['bidder_prices']) && !empty($itemMap) && !empty($bidderMap)) {
+                foreach ($validated['bidder_prices'] as $bidderIndex => $itemPrices) {
+                    if (isset($bidderMap[$bidderIndex])) {
+                        $bidderId = $bidderMap[$bidderIndex];
+                        foreach ($itemPrices as $itemIndex => $priceData) {
+                            if (isset($itemMap[$itemIndex])) {
+                                $itemId = $itemMap[$itemIndex];
+                                ComparisonBidderPrice::create([
+                                    'comparison_bidder_id' => $bidderId,
+                                    'comparison_item_id' => $itemId,
+                                    'unit_price' => $priceData['unit_price'] ?? 0,
+                                    'line_total' => $priceData['line_total'] ?? 0,
+                                ]);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -243,7 +284,7 @@ class ProcurementWorkflowController extends Controller
 
             $this->logAudit('comparison', $sheet->id, 'created', null, $sheet->toArray());
 
-            return response()->json(['data' => $sheet->load(['items', 'bidders', 'committeeMembers'])], 201);
+            return response()->json(['data' => $sheet->load(['items', 'bidders.prices', 'committeeMembers'])], 201);
         });
     }
 
@@ -256,7 +297,7 @@ class ProcurementWorkflowController extends Controller
     public function comparisonUpdate(Request $request, $id)
     {
         $sheet = ComparisonSheet::findOrFail($id);
-        
+
         $validated = $request->validate([
             'rfq_document_number' => 'sometimes|string',
             'rfq_date' => 'sometimes|date',
@@ -272,17 +313,26 @@ class ProcurementWorkflowController extends Controller
             'approver2_id' => 'sometimes|exists:users,id',
             'status' => 'sometimes|in:draft,submitted,under_review,approved,rejected',
             'items' => 'sometimes|array',
+            'items.*.item_name' => 'required|string',
+            'items.*.technical_description' => 'nullable|string',
+            'items.*.unit_id' => 'nullable|exists:units_of_measure,id',
+            'items.*.quantity' => 'required|numeric',
             'bidders' => 'sometimes|array',
+            'bidders.*.name' => 'required|string',
+            'bidders.*.address' => 'nullable|string',
+            'bidders.*.is_winner' => 'nullable|boolean',
+            'bidder_prices' => 'nullable|array',
         ]);
 
         return DB::transaction(function () use ($sheet, $validated, $request) {
             $oldValues = $sheet->toArray();
             $sheet->update($validated);
 
+            $itemMap = [];
             if (isset($validated['items'])) {
                 $sheet->items()->delete();
                 foreach ($validated['items'] as $index => $item) {
-                    ComparisonItem::create([
+                    $comparisonItem = ComparisonItem::create([
                         'comparison_sheet_id' => $sheet->id,
                         'line_no' => $index + 1,
                         'item_name' => $item['item_name'],
@@ -290,12 +340,47 @@ class ProcurementWorkflowController extends Controller
                         'unit_id' => $item['unit_id'] ?? null,
                         'quantity' => $item['quantity'],
                     ]);
+                    $itemMap[$index] = $comparisonItem->id;
+                }
+            }
+
+            $bidderMap = [];
+            if (isset($validated['bidders'])) {
+                $sheet->bidders()->delete();
+                foreach ($validated['bidders'] as $index => $bidder) {
+                    $bidderModel = ComparisonBidder::create([
+                        'comparison_sheet_id' => $sheet->id,
+                        'name' => $bidder['name'],
+                        'address' => $bidder['address'] ?? null,
+                        'is_winner' => $bidder['is_winner'] ?? false,
+                    ]);
+                    $bidderMap[$index] = $bidderModel->id;
+                }
+            }
+
+            if (isset($validated['bidder_prices']) && !empty($itemMap) && !empty($bidderMap)) {
+                ComparisonBidderPrice::whereIn('comparison_bidder_id', $sheet->bidders->pluck('id'))->delete();
+                foreach ($validated['bidder_prices'] as $bidderIndex => $itemPrices) {
+                    if (isset($bidderMap[$bidderIndex])) {
+                        $bidderId = $bidderMap[$bidderIndex];
+                        foreach ($itemPrices as $itemIndex => $priceData) {
+                            if (isset($itemMap[$itemIndex])) {
+                                $itemId = $itemMap[$itemIndex];
+                                ComparisonBidderPrice::create([
+                                    'comparison_bidder_id' => $bidderId,
+                                    'comparison_item_id' => $itemId,
+                                    'unit_price' => $priceData['unit_price'] ?? 0,
+                                    'line_total' => $priceData['line_total'] ?? 0,
+                                ]);
+                            }
+                        }
+                    }
                 }
             }
 
             $this->logAudit('comparison', $sheet->id, 'updated', $oldValues, $sheet->toArray());
 
-            return response()->json(['data' => $sheet->load(['items', 'bidders', 'committeeMembers'])]);
+            return response()->json(['data' => $sheet->load(['items', 'bidders.prices', 'committeeMembers'])]);
         });
     }
 

@@ -45,6 +45,23 @@ class CompanyController extends Controller
         ]);
     }
 
+    public function trashed(Request $request)
+    {
+        $query = Company::onlyTrashed()->with(['vendor']);
+
+        $size = min(max((int) $request->input('pageSize', 25), 1), 100);
+        $companies = $query->orderByDesc('deleted_at')->paginate($size);
+
+        return response()->json([
+            'data' => $companies->items(),
+            'meta' => [
+                'page' => $companies->currentPage(),
+                'pageSize' => $companies->perPage(),
+                'total' => $companies->total(),
+            ],
+        ]);
+    }
+
     public function show(Request $request, int $id)
     {
         $company = Company::with(['vendor', 'violations', 'procurementOrders', 'contracts'])
@@ -109,6 +126,14 @@ class CompanyController extends Controller
         $company->restore();
 
         return response()->json(['data' => $company]);
+    }
+
+    public function forceDelete(Request $request, int $id)
+    {
+        $company = Company::withTrashed()->findOrFail($id);
+        $company->forceDelete();
+
+        return response()->noContent();
     }
 
     public function blacklist(Request $request, int $id)

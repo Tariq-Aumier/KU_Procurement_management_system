@@ -51,6 +51,23 @@ class ProcurementOrderController extends Controller
         ]);
     }
 
+    public function trashed(Request $request)
+    {
+        $query = ProcurementOrder::onlyTrashed()->with(['office', 'company']);
+
+        $size = min(max((int) $request->input('pageSize', 25), 1), 100);
+        $orders = $query->orderByDesc('deleted_at')->paginate($size);
+
+        return response()->json([
+            'data' => $orders->items(),
+            'meta' => [
+                'page' => $orders->currentPage(),
+                'pageSize' => $orders->perPage(),
+                'total' => $orders->total(),
+            ],
+        ]);
+    }
+
     public function show(Request $request, int $id)
     {
         $order = ProcurementOrder::with(['office', 'company', 'createdBy', 'items', 'rfqs'])
@@ -125,6 +142,14 @@ class ProcurementOrderController extends Controller
         $order->restore();
 
         return response()->json(['data' => $order]);
+    }
+
+    public function forceDelete(Request $request, int $id)
+    {
+        $order = ProcurementOrder::withTrashed()->findOrFail($id);
+        $order->forceDelete();
+
+        return response()->noContent();
     }
 
     public function submit(Request $request, int $id)

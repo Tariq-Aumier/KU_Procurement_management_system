@@ -38,6 +38,23 @@ class OfficeCategoryController extends Controller
         ]);
     }
 
+    public function trashed(Request $request)
+    {
+        $query = OfficeCategory::onlyTrashed();
+
+        $size = min(max((int) $request->input('pageSize', 25), 1), 100);
+        $categories = $query->orderByDesc('deleted_at')->paginate($size);
+
+        return response()->json([
+            'data' => $categories->items(),
+            'meta' => [
+                'page' => $categories->currentPage(),
+                'pageSize' => $categories->perPage(),
+                'total' => $categories->total(),
+            ],
+        ]);
+    }
+
     public function show(Request $request, int $id)
     {
         $category = OfficeCategory::with(['offices'])->findOrFail($id);
@@ -105,5 +122,31 @@ class OfficeCategoryController extends Controller
         $category->deactivate();
 
         return response()->json(['data' => $category->fresh()]);
+    }
+
+    public function restore(Request $request, int $id)
+    {
+        $category = OfficeCategory::withTrashed()->findOrFail($id);
+        $category->restore();
+
+        return response()->json(['data' => $category]);
+    }
+
+    public function forceDelete(Request $request, int $id)
+    {
+        $category = OfficeCategory::withTrashed()->findOrFail($id);
+
+        if ($category->offices()->withTrashed()->count() > 0) {
+            return response()->json([
+                'error' => [
+                    'code' => 'HAS_OFFICES',
+                    'message' => 'Cannot permanently delete category with offices. Please delete offices first.'
+                ]
+            ], 422);
+        }
+
+        $category->forceDelete();
+
+        return response()->noContent();
     }
 }

@@ -36,7 +36,8 @@ export default function Orders() {
   const [editing, setEditing] = useState<ApiOrder | null>(null);
   const [viewing, setViewing] = useState<ApiOrder | null>(null);
   const [creating, setCreating] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<ApiOrder | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   const fetchOrders = async () => {
     try {
@@ -78,15 +79,12 @@ export default function Orders() {
     return arr;
   }, [orders, q, filterPriority, filterStatus, filterCategory, sortByPriority]);
 
-  async function handleDelete(o: ApiOrder) {
-    try {
-      await ordersApi.delete(o.id);
-      await fetchOrders();
-      toast(lang === "en" ? "Deleted" : lang === "ps" ? "حذف شو" : "حذف شد", "info");
-    } catch (err) {
-      toast(lang === "en" ? "Failed to delete order" : lang === "ps" ? "د سپارښتنې حذول په کې پاتې شو" : "حذف سفارش ناموفق بود", "error");
-    }
-  }
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [q, filterPriority, filterStatus, filterCategory, sortByPriority]);
 
   return (
     <div className="space-y-5">
@@ -134,9 +132,10 @@ export default function Orders() {
               {lang === "en" ? "Retry" : lang === "ps" ? "بیاښه کړه" : "تلاش مجدد"}
             </Button>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : paginatedData.length === 0 ? (
           <EmptyState icon="📦" title={lang === "en" ? "No orders found" : lang === "ps" ? "هیڅ سپارښتنه ونه موندل شوه" : "سفارشی یافت نشد"} />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 uppercase dark:bg-slate-900/50 dark:border-slate-700 dark:text-slate-400">
@@ -152,7 +151,7 @@ export default function Orders() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map((o) => {
+                {paginatedData.map((o) => {
                   const company = data.companies.find((c) => String(c.id) === String(o.company_id));
                   const office = data.offices.find((off) => String(off.id) === String(o.office_id));
                   const overdue = new Date(o.required_date) < new Date() && o.status !== "completed";
@@ -195,7 +194,6 @@ export default function Orders() {
                         <div className="flex items-center gap-1 justify-end">
                           <Button size="sm" variant="ghost" onClick={() => setViewing(o)}>{lang === "en" ? "View" : lang === "ps" ? "لیدل" : "مشاهده"}</Button>
                           <Button size="sm" variant="ghost" onClick={() => setEditing(o)}>{lang === "en" ? "Edit" : lang === "ps" ? "سمول" : "ویرایش"}</Button>
-                          <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" onClick={() => setConfirmDelete(o)}>{lang === "en" ? "Delete" : lang === "ps" ? "حذف" : "حذف"}</Button>
                         </div>
                       </td>
                     </tr>
@@ -204,6 +202,45 @@ export default function Orders() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                {lang === "en" ? `Page ${currentPage} of ${totalPages}` :
+                 lang === "ps" ? `پاڼه ${currentPage} له ${totalPages}` :
+                 `صفحه ${currentPage} از ${totalPages}`}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  {lang === "en" ? "Previous" : lang === "ps" ? "مخکینی" : "قبلی"}
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <Button
+                    key={page}
+                    size="sm"
+                    variant={currentPage === page ? "primary" : "ghost"}
+                    onClick={() => setCurrentPage(page)}
+                    className="min-w-[32px]"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  {lang === "en" ? "Next" : lang === "ps" ? "راتلونکی" : "بعدی"}
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </Card>
 
@@ -236,15 +273,6 @@ export default function Orders() {
           data={data}
         />
       )}
-
-      <ConfirmModal
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
-        title={lang === "en" ? "Confirm Delete" : lang === "ps" ? "د حذف تایید" : "تایید حذف"}
-        message={lang === "en" ? `Are you sure you want to delete "${confirmDelete?.order_no}"?` : lang === "ps" ? `آیا د "${confirmDelete?.order_no}" حذف کول غواړئ؟` : `آیا می‌خواهید "${confirmDelete?.order_no}" را حذف کنید؟`}
-        confirmText={lang === "en" ? "Delete" : lang === "ps" ? "حذف کړه" : "حذف"}
-      />
     </div>
   );
 }

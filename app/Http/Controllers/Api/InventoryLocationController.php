@@ -42,6 +42,23 @@ class InventoryLocationController extends Controller
         ]);
     }
 
+    public function trashed(Request $request)
+    {
+        $query = InventoryLocation::onlyTrashed()->with(['office']);
+
+        $size = min(max((int) $request->input('pageSize', 25), 1), 100);
+        $locations = $query->orderByDesc('deleted_at')->paginate($size);
+
+        return response()->json([
+            'data' => $locations->items(),
+            'meta' => [
+                'page' => $locations->currentPage(),
+                'pageSize' => $locations->perPage(),
+                'total' => $locations->total(),
+            ],
+        ]);
+    }
+
     public function show(Request $request, int $id)
     {
         $location = InventoryLocation::with(['office', 'inventoryItems'])
@@ -122,5 +139,31 @@ class InventoryLocationController extends Controller
             ->get();
 
         return response()->json(['data' => $locations]);
+    }
+
+    public function restore(Request $request, int $id)
+    {
+        $location = InventoryLocation::withTrashed()->findOrFail($id);
+        $location->restore();
+
+        return response()->json(['data' => $location]);
+    }
+
+    public function forceDelete(Request $request, int $id)
+    {
+        $location = InventoryLocation::withTrashed()->findOrFail($id);
+
+        if ($location->inventoryItems()->withTrashed()->count() > 0) {
+            return response()->json([
+                'error' => [
+                    'code' => 'HAS_ITEMS',
+                    'message' => 'Cannot permanently delete location with inventory items. Please delete items first.'
+                ]
+            ], 422);
+        }
+
+        $location->forceDelete();
+
+        return response()->noContent();
     }
 }

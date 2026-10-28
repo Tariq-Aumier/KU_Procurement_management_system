@@ -33,7 +33,8 @@ export default function Inventory() {
   const [viewing, setViewing] = useState<ApiInventoryItem | null>(null);
   const [editing, setEditing] = useState<ApiInventoryItem | null>(null);
   const [creating, setCreating] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<ApiInventoryItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   // Fetch inventory items
   const fetchData = async () => {
@@ -70,6 +71,13 @@ export default function Inventory() {
     });
   }, [inventoryItems, q, filterType, filterStatus]);
 
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [q, filterType, filterStatus]);
+
   const stats = useMemo(() => {
     const total = inventoryItems.length;
     const samples = inventoryItems.filter((i) => i.item_type === "sample").length;
@@ -89,16 +97,6 @@ export default function Inventory() {
     if (status === "in_stock") return t.inStock;
     if (status === "low_stock") return t.lowStock;
     return t.outOfStock;
-  }
-
-  async function handleDelete(item: ApiInventoryItem) {
-    try {
-      await inventoryItemsApi.delete(item.id);
-      await fetchData();
-      toast(`${t.delete}: "${item.name}"`, "success");
-    } catch (err) {
-      toast("Error deleting item", "error");
-    }
   }
 
   const typeOptions = [
@@ -163,42 +161,42 @@ export default function Inventory() {
 
       {/* Items Table */}
       <Card>
-        {filtered.length === 0 ? (
+        {paginatedData.length === 0 ? (
           <EmptyState icon="📦" title={t.noData} />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase">
                 <tr>
-                  <th className="text-right px-4 py-3 font-semibold">{t.code}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{t.name}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{t.type}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{t.category}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{t.unit}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{t.status}</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">{t.code}</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">{t.name}</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">{t.type}</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">{t.category}</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">{t.unit}</th>
+                  <th className="text-left pl-12 pr-4 py-3 font-semibold">{t.status}</th>
                   <th className="text-left px-4 py-3 font-semibold">{t.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((item) => {
+                {paginatedData.map((item) => {
                   const status = getItemStatus(item);
                   const typeLabel = typeOptions.find((o) => o.value === item.item_type)?.label || item.item_type;
                   return (
                     <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3"><Badge tone="slate">{item.code}</Badge></td>
-                      <td className="px-4 py-3">
+                      <td className="pl-12 pr-4 py-3"><Badge tone="slate">{item.code}</Badge></td>
+                      <td className="pl-12 pr-4 py-3">
                         <p className="font-medium text-slate-900">{item.name}</p>
                         <p className="text-xs text-slate-500">{item.description || ""}</p>
                       </td>
-                      <td className="px-4 py-3"><Badge tone={TYPE_TONES[item.item_type as keyof typeof TYPE_TONES] || "blue"}>{typeLabel}</Badge></td>
-                      <td className="px-4 py-3 text-slate-600">{item.category}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.unit}</td>
-                      <td className="px-4 py-3"><Badge tone={STATUS_TONES[status]}>{getStatusLabel(status)}</Badge></td>
+                      <td className="pl-12 pr-4 py-3"><Badge tone={TYPE_TONES[item.item_type as keyof typeof TYPE_TONES] || "blue"}>{typeLabel}</Badge></td>
+                      <td className="pl-12 pr-4 py-3 text-slate-600">{item.category}</td>
+                      <td className="pl-12 pr-4 py-3 text-slate-600">{item.unit}</td>
+                      <td className="pl-12 pr-4 py-3"><Badge tone={STATUS_TONES[status]}>{getStatusLabel(status)}</Badge></td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1 justify-end">
                           <Button size="sm" variant="ghost" onClick={() => setViewing(item)}>{lang === "en" ? "View" : lang === "ps" ? "کتل" : "مشاهده"}</Button>
                           <Button size="sm" variant="ghost" onClick={() => setEditing(item)}>{t.edit}</Button>
-                          <Button size="sm" variant="ghost" className="text-red-600" onClick={() => setConfirmDelete(item)}>{t.delete}</Button>
                         </div>
                       </td>
                     </tr>
@@ -207,6 +205,45 @@ export default function Inventory() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                {lang === "en" ? `Page ${currentPage} of ${totalPages}` :
+                 lang === "ps" ? `پاڼه ${currentPage} له ${totalPages}` :
+                 `صفحه ${currentPage} از ${totalPages}`}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  {lang === "en" ? "Previous" : lang === "ps" ? "مخکینی" : "قبلی"}
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <Button
+                    key={page}
+                    size="sm"
+                    variant={currentPage === page ? "primary" : "ghost"}
+                    onClick={() => setCurrentPage(page)}
+                    className="min-w-[32px]"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  {lang === "en" ? "Next" : lang === "ps" ? "راتلونکی" : "بعدی"}
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </Card>
 
@@ -233,14 +270,6 @@ export default function Inventory() {
           }}
         />
       )}
-      <ConfirmModal
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
-        title={t.confirm}
-        message={`${t.delete} "${confirmDelete?.name}"?`}
-        confirmText={t.delete}
-      />
         </>
       )}
     </div>

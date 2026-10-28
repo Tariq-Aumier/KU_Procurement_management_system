@@ -91,11 +91,12 @@ export default function Contracts() {
   const [q, setQ] = useState("");
   const [tier, setTier] = useState<"all" | ContractTier>("all");
   const [status, setStatus] = useState<"all" | ContractStatus>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const [editing, setEditing] = useState<ApiContract | null>(null);
   const [viewing, setViewing] = useState<ApiContract | null>(null);
   const [creating, setCreating] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<ApiContract | null>(null);
 
   const fetchContracts = async () => {
     try {
@@ -132,17 +133,14 @@ export default function Contracts() {
     });
   }, [contracts, data, q, tier, status]);
 
-  const totalValue = filtered.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  async function handleDelete(c: ApiContract) {
-    try {
-      await contractsApi.delete(c.id);
-      await fetchContracts();
-      toast(lang === "en" ? "Contract deleted" : lang === "ps" ? "قرارداد حذف شو" : "قرارداد حذف شد", "info");
-    } catch (err) {
-      toast(lang === "en" ? "Failed to delete contract" : lang === "ps" ? "د قرارداد حذول په کې پاتې شو" : "حذف قرارداد ناموفق بود", "error");
-    }
-  }
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [q, tier, status]);
+
+  const totalValue = filtered.reduce((s, c) => s + (Number(c.amount) || 0), 0);
 
   const getCurrencySymbol = (currency: string) => {
     switch (currency) {
@@ -197,7 +195,9 @@ export default function Contracts() {
           <Button onClick={() => setCreating(true)} icon={<span>＋</span>}>{lang === "en" ? "New contract" : lang === "ps" ? "نوی قرارداد" : "قرارداد جدید"}</Button>
         </div>
         <div className="mt-3 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-4">
-          <span>{filtered.length} {lang === "en" ? "contracts" : lang === "ps" ? "قراردادونه" : "قرارداد"}</span>
+          <span>{lang === "en" ? `Showing ${paginatedData.length} of ${filtered.length} contracts (Page ${currentPage} of ${totalPages})` :
+                lang === "ps" ? `ښودل ${paginatedData.length} له ${filtered.length} قراردادونو څخه (پاڼه ${currentPage} له ${totalPages})` :
+                `نمایش ${paginatedData.length} از ${filtered.length} قرارداد (صفحه ${currentPage} از ${totalPages})`}</span>
           <span>·</span>
           <span>{lang === "en" ? "Total value:" : lang === "ps" ? "مجموعي ارزښت:" : "ارزش کل:"} <strong className="text-slate-700 dark:text-slate-300">{getCurrencySymbol(filtered.length > 0 ? filtered[0].currency : 'USD')}{Math.floor(totalValue).toLocaleString()}</strong></span>
         </div>
@@ -216,56 +216,58 @@ export default function Contracts() {
               {lang === "en" ? "Retry" : lang === "ps" ? "بیاښه کړه" : "تلاش مجدد"}
             </Button>
           </div>
-        ) : filtered.length === 0 ? (
-          <EmptyState 
-            icon="📑" 
-            title={lang === "en" ? "No contracts found" : lang === "ps" ? "هیڅ قرارداد ونه موندل شو" : "قراردادی یافت نشد"} 
-            description={lang === "en" ? "No contracts match your filters" : lang === "ps" ? "هیڅ قرارداد ستاسو فلټرونه سره نه برابرېږي" : "هیچ قراردادی با فیلترهای شما مطابقت ندارد"} 
+        ) : paginatedData.length === 0 ? (
+          <EmptyState
+            icon="📑"
+            title={lang === "en" ? "No contracts found" : lang === "ps" ? "هیڅ قرارداد ونه موندل شو" : "قراردادی یافت نشد"}
+            description={lang === "en" ? "No contracts match your filters" : lang === "ps" ? "هیڅ قرارداد ستاسو فلټرونه سره نه برابرېږي" : "هیچ قراردادی با فیلترهای شما مطابقت ندارد"}
           />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 uppercase dark:bg-slate-900/50 dark:border-slate-700 dark:text-slate-400">
                 <tr>
-                  <th className="text-right px-4 py-3 font-semibold">{lang === "en" ? "Contract" : lang === "ps" ? "قرارداد" : "قرارداد"}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{lang === "en" ? "Company" : lang === "ps" ? "شرکت" : "شرکت"}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{lang === "en" ? "Amount" : lang === "ps" ? "ارزښت" : "ارزش"}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{lang === "en" ? "Progress" : lang === "ps" ? "پرمختګ" : "پیشرفت"}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{lang === "en" ? "Status" : lang === "ps" ? "حالت" : "وضعیت"}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{lang === "en" ? "Doc" : lang === "ps" ? "سند" : "سند"}</th>
-                  <th className="text-left px-4 py-3 font-semibold">{lang === "en" ? "Actions" : lang === "ps" ? "عملونه" : "عملیات"}</th>
+                  <th className={`${lang === "en" ? "text-left pl-20" : "text-right"} pr-4 py-3 font-semibold`}>{lang === "en" ? "Contract" : lang === "ps" ? "قرارداد" : "قرارداد"}</th>
+                  <th className={`${lang === "en" ? "text-left pl-12" : "text-right"} pr-4 py-3 font-semibold`}>{lang === "en" ? "Company" : lang === "ps" ? "شرکت" : "شرکت"}</th>
+                  <th className={`${lang === "en" ? "text-left pl-8" : "text-right"} pr-4 py-3 font-semibold`}>{lang === "en" ? "Amount" : lang === "ps" ? "ارزښت" : "ارزش"}</th>
+                  <th className={`${lang === "en" ? "text-left pl-8" : "text-right"} pr-4 py-3 font-semibold`}>{lang === "en" ? "Progress" : lang === "ps" ? "پرمختګ" : "پیشرفت"}</th>
+                  <th className={`${lang === "en" ? "text-left pl-4" : "text-right"} pr-4 py-3 font-semibold`}>{lang === "en" ? "Status" : lang === "ps" ? "حالت" : "وضعیت"}</th>
+                  <th className={`${lang === "en" ? "text-left pl-4" : "text-right"} pr-4 py-3 font-semibold`}>{lang === "en" ? "Doc" : lang === "ps" ? "سند" : "سند"}</th>
+                  <th className={`${lang === "en" ? "text-right pr-12" : "text-right"} pl-4 py-3 font-semibold`}>{lang === "en" ? "Actions" : lang === "ps" ? "عملونه" : "عملیات"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map((c) => {
+                {paginatedData.map((c) => {
                   const company = data.companies.find((x) => String(x.id) === String(c.company_id));
                   const contractTier = getTierFromAmount(c.amount);
                   return (
                     <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <td className="px-4 py-3">
+                      <td className={lang === "en" ? "pl-20 pr-4 py-3" : "pr-4 py-3"}>
                         <p className="font-medium text-slate-900 dark:text-slate-100">{c.title}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">{c.contract_no}</p>
                       </td>
-                      <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{company?.name ?? "—"}</td>
-                      <td className="px-4 py-3">
+                      <td className={lang === "en" ? "pl-12 pr-4 py-3" : "pr-4 py-3"} style={{textAlign: lang === "en" ? "left" : "right"}}>
+                        <span className="text-slate-800 dark:text-slate-200">{company?.name ?? "—"}</span>
+                      </td>
+                      <td className={lang === "en" ? "pl-8 pr-4 py-3" : "pr-4 py-3"} style={{textAlign: lang === "en" ? "left" : "right"}}>
                         <p className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">{getCurrencySymbol(c.currency)}{Math.floor(c.amount).toLocaleString()} {c.currency}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">{TIER_LIMITS[contractTier].labelEn}</p>
                       </td>
-                      <td className="px-4 py-3 min-w-[140px]">
+                      <td className={`${lang === "en" ? "pl-8" : ""} pr-4 py-3 min-w-[140px]`} style={{textAlign: lang === "en" ? "left" : "right"}}>
                         <div className="flex items-center gap-2">
                           <ProgressBar value={c.progress_percent} tone={c.progress_percent === 100 ? "green" : "blue"} />
                           <span className="text-xs tabular-nums text-slate-700 dark:text-slate-300 w-10 text-left">{c.progress_percent}%</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3"><Badge tone={STATUS_TONE[c.status as keyof typeof STATUS_TONE]}>{c.status}</Badge></td>
-                      <td className="px-4 py-3">
+                      <td className={lang === "en" ? "pl-4 pr-4 py-3" : "pr-4 py-3"} style={{textAlign: lang === "en" ? "left" : "right"}}><Badge tone={STATUS_TONE[c.status as keyof typeof STATUS_TONE]}>{c.status}</Badge></td>
+                      <td className={lang === "en" ? "pl-4 pr-4 py-3" : "pr-4 py-3"} style={{textAlign: lang === "en" ? "left" : "right"}}>
                         <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className={lang === "en" ? "pr-12 pl-4 py-3" : "pl-4 py-3"} style={{textAlign: "right"}}>
                         <div className="flex items-center gap-1 justify-end">
                           <Button size="sm" variant="ghost" onClick={() => setViewing(c)}>{lang === "en" ? "View" : lang === "ps" ? "مشاهده" : "مشاهده"}</Button>
                           <Button size="sm" variant="ghost" onClick={() => setEditing(c)}>{lang === "en" ? "Edit" : lang === "ps" ? "سمول" : "ویرایش"}</Button>
-                          <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" onClick={() => setConfirmDelete(c)}>{lang === "en" ? "Delete" : lang === "ps" ? "حذف" : "حذف"}</Button>
                         </div>
                       </td>
                     </tr>
@@ -274,6 +276,45 @@ export default function Contracts() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                {lang === "en" ? `Page ${currentPage} of ${totalPages}` :
+                 lang === "ps" ? `پاڼه ${currentPage} له ${totalPages}` :
+                 `صفحه ${currentPage} از ${totalPages}`}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  {lang === "en" ? "Previous" : lang === "ps" ? "مخکینی" : "قبلی"}
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <Button
+                    key={page}
+                    size="sm"
+                    variant={currentPage === page ? "primary" : "ghost"}
+                    onClick={() => setCurrentPage(page)}
+                    className="min-w-[32px]"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  {lang === "en" ? "Next" : lang === "ps" ? "راتلونکی" : "بعدی"}
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </Card>
 
@@ -305,15 +346,6 @@ export default function Contracts() {
           onClose={() => setViewing(null)}
         />
       )}
-
-      <ConfirmModal
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
-        title={lang === "en" ? "Confirm Delete" : lang === "ps" ? "د حذف تایید" : "تایید حذف"}
-        message={lang === "en" ? `Are you sure you want to delete "${confirmDelete?.contract_no}"?` : lang === "ps" ? `آیا د "${confirmDelete?.contract_no}" حذف کول غواړئ؟` : `آیا می‌خواهید "${confirmDelete?.contract_no}" را حذف کنید؟`}
-        confirmText={lang === "en" ? "Delete" : lang === "ps" ? "حذف کړه" : "حذف"}
-      />
     </div>
   );
 }

@@ -44,6 +44,23 @@ class OfficeController extends Controller
         ]);
     }
 
+    public function trashed(Request $request)
+    {
+        $query = Office::onlyTrashed()->with(['officeCategory']);
+
+        $size = min(max((int) $request->input('pageSize', 25), 1), 100);
+        $offices = $query->orderByDesc('deleted_at')->paginate($size);
+
+        return response()->json([
+            'data' => $offices->items(),
+            'meta' => [
+                'page' => $offices->currentPage(),
+                'pageSize' => $offices->perPage(),
+                'total' => $offices->total(),
+            ],
+        ]);
+    }
+
     public function show(Request $request, int $id)
     {
         $office = Office::with(['officeCategory', 'users', 'procurementOrders', 'inventoryLocations'])
@@ -139,5 +156,40 @@ class OfficeController extends Controller
             ->get();
 
         return response()->json(['data' => $offices]);
+    }
+
+    public function restore(Request $request, int $id)
+    {
+        $office = Office::withTrashed()->findOrFail($id);
+        $office->restore();
+
+        return response()->json(['data' => $office]);
+    }
+
+    public function forceDelete(Request $request, int $id)
+    {
+        $office = Office::withTrashed()->findOrFail($id);
+
+        if ($office->users()->withTrashed()->count() > 0) {
+            return response()->json([
+                'error' => [
+                    'code' => 'HAS_USERS',
+                    'message' => 'Cannot permanently delete office with users. Please delete users first.'
+                ]
+            ], 422);
+        }
+
+        if ($office->procurementOrders()->withTrashed()->count() > 0) {
+            return response()->json([
+                'error' => [
+                    'code' => 'HAS_ORDERS',
+                    'message' => 'Cannot permanently delete office with procurement orders. Please delete orders first.'
+                ]
+            ], 422);
+        }
+
+        $office->forceDelete();
+
+        return response()->noContent();
     }
 }

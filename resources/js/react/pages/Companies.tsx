@@ -26,10 +26,12 @@ export default function Companies() {
   const [q, setQ] = useState("");
   const [filterType, setFilterType] = useState<"all" | CompanyType>("all");
   const [showBlacklisted, setShowBlacklisted] = useState<"all" | "yes" | "no">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   const [editing, setEditing] = useState<ApiCompany | null>(null);
   const [creating, setCreating] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<ApiCompany | null>(null);
+  const [viewing, setViewing] = useState<ApiCompany | null>(null);
 
   const fetchCompanies = async () => {
     try {
@@ -63,15 +65,12 @@ export default function Companies() {
     });
   }, [companies, q, filterType, showBlacklisted]);
 
-  async function handleDelete(c: ApiCompany) {
-    try {
-      await companiesApi.delete(c.id);
-      await fetchCompanies();
-      toast(lang === "en" ? `Company "${c.legal_name}" deleted` : lang === "ps" ? `شرکت "${c.legal_name}" حذف شو` : `شرکت "${c.legal_name}" حذف شد`, "success");
-    } catch (err) {
-      toast(lang === "en" ? "Failed to delete company" : lang === "ps" ? "د شرکت حذول په کې پاتې شو" : "حذف شرکت ناموفق بود", "error");
-    }
-  }
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [q, filterType, showBlacklisted]);
 
   async function handleToggleBlacklist(c: ApiCompany, reason?: string) {
     try {
@@ -117,9 +116,9 @@ export default function Companies() {
           </Button>
         </div>
         <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-          {lang === "en" ? `Total: <strong>${filtered.length}</strong> of <strong>${companies.length}</strong> companies` : 
-           lang === "ps" ? `مجموع: <strong>${filtered.length}</strong> له <strong>${companies.length}</strong> شرکتونو څخه` :
-           `مجموع: <strong>${filtered.length}</strong> از <strong>${companies.length}</strong> شرکت‌ها`}
+          {lang === "en" ? `Showing <strong>${paginatedData.length}</strong> of <strong>${filtered.length}</strong> companies (Page ${currentPage} of ${totalPages})` :
+           lang === "ps" ? `ښودل <strong>${paginatedData.length}</strong> له <strong>${filtered.length}</strong> شرکتونو څخه (پاڼه ${currentPage} له ${totalPages})` :
+           `نمایش <strong>${paginatedData.length}</strong> از <strong>${filtered.length}</strong> شرکت‌ها (صفحه ${currentPage} از ${totalPages})`}
         </div>
       </Card>
 
@@ -136,49 +135,51 @@ export default function Companies() {
               {lang === "en" ? "Retry" : lang === "ps" ? "بیاښه کړه" : "تلاش مجدد"}
             </Button>
           </div>
-        ) : filtered.length === 0 ? (
-          <EmptyState 
-            icon="🏢" 
-            title={lang === "en" ? "No companies found" : lang === "ps" ? "هیڅ شرکت ونه موندل شو" : "شرکتی یافت نشد"} 
-            description={lang === "en" ? "Try changing filters or add a new company" : lang === "ps" ? "فلټر بدل کړئ یا نوی شرکت اضافه کړئ" : "فیلترها را تغییر دهید یا شرکت جدید اضافه کنید"} 
+        ) : paginatedData.length === 0 ? (
+          <EmptyState
+            icon="🏢"
+            title={lang === "en" ? "No companies found" : lang === "ps" ? "هیڅ شرکت ونه موندل شو" : "شرکتی یافت نشد"}
+            description={lang === "en" ? "Try changing filters or add a new company" : lang === "ps" ? "فلټر بدل کړئ یا نوی شرکت اضافه کړئ" : "فیلترها را تغییر دهید یا شرکت جدید اضافه کنید"}
           />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 uppercase tracking-wide dark:bg-slate-900/50 dark:border-slate-700 dark:text-slate-400">
                 <tr>
-                  <th className="text-right px-4 py-3 font-semibold">{lang === "en" ? "Company" : lang === "ps" ? "شرکت" : "شرکت"}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{lang === "en" ? "Type" : lang === "ps" ? "ډول" : "نوع"}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{lang === "en" ? "Contact" : lang === "ps" ? "اړیکیال" : "تماس"}</th>
-                  <th className="text-right px-4 py-3 font-semibold">{lang === "en" ? "Status" : lang === "ps" ? "حالت" : "وضعیت"}</th>
-                  <th className="text-left px-4 py-3 font-semibold">{lang === "en" ? "Actions" : lang === "ps" ? "عملونه" : "عملیات"}</th>
+                  <th className={`${lang === "en" ? "text-left pl-24" : "text-right"} pr-4 py-3 font-semibold`}>{lang === "en" ? "Company" : lang === "ps" ? "شرکت" : "شرکت"}</th>
+                  <th className={`${lang === "en" ? "text-left pl-16" : "text-right"} pr-4 py-3 font-semibold`}>{lang === "en" ? "Type" : lang === "ps" ? "ډول" : "نوع"}</th>
+                  <th className={`${lang === "en" ? "text-left pl-20" : "text-right"} pr-4 py-3 font-semibold`}>{lang === "en" ? "Contact" : lang === "ps" ? "اړیکیال" : "تماس"}</th>
+                  <th className={`${lang === "en" ? "text-left pl-8" : "text-right"} pr-4 py-3 font-semibold`}>{lang === "en" ? "Status" : lang === "ps" ? "حالت" : "وضعیت"}</th>
+                  <th className={`${lang === "en" ? "text-right pr-12" : "text-right"} pl-4 py-3 font-semibold`}>{lang === "en" ? "Actions" : lang === "ps" ? "عملونه" : "عملیات"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map((c) => (
+                {paginatedData.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50 transition-base dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3">
+                    <td className={lang === "en" ? "pl-24 pr-4 py-3" : "pr-4 py-3"} style={{textAlign: lang === "en" ? "left" : "right"}}>
                       <p className="font-medium text-slate-900 dark:text-slate-100">{c.legal_name}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">{c.registration_no}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={lang === "en" ? "pl-16 pr-4 py-3" : "pr-4 py-3"} style={{textAlign: lang === "en" ? "left" : "right"}}>
                       <Badge tone={c.company_type === "construction" ? "blue" : c.company_type === "logistics" ? "violet" : c.company_type === "logistics_construction" ? "amber" : c.company_type === "medical" ? "green" : c.company_type === "equipment" ? "red" : "slate"}>
                         {TYPE_LABELS[c.company_type as CompanyType]?.[lang] || c.company_type}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={lang === "en" ? "pl-20 pr-4 py-3" : "pr-4 py-3"} style={{textAlign: lang === "en" ? "left" : "right"}}>
                       <p className="text-slate-800 dark:text-slate-200">{c.contact_person}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">{c.phone || '-'}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={lang === "en" ? "pl-8 pr-4 py-3" : "pr-4 py-3"} style={{textAlign: lang === "en" ? "left" : "right"}}>
                       {c.eligibility_status === "blacklisted" ? (
                         <Badge tone="red">🚫 {lang === "en" ? "Blacklisted" : lang === "ps" ? "بلاک شوی" : "لیست سیاه"}</Badge>
                       ) : (
                         <Badge tone="green">✓ {lang === "en" ? "Active" : lang === "ps" ? "فعال" : "فعال"}</Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={lang === "en" ? "pr-12 pl-4 py-3" : "pl-4 py-3"} style={{textAlign: "right"}}>
                       <div className="flex items-center gap-1 justify-end">
+                        <Button size="sm" variant="ghost" onClick={() => setViewing(c)}>{lang === "en" ? "View" : lang === "ps" ? "لیدل" : "مشاهده"}</Button>
                         <Button size="sm" variant="ghost" onClick={() => setEditing(c)}>{lang === "en" ? "Edit" : lang === "ps" ? "سمول" : "ویرایش"}</Button>
                         {c.eligibility_status === "blacklisted" ? (
                           <Button size="sm" variant="ghost" onClick={() => handleToggleBlacklist(c)}>{lang === "en" ? "Unblock" : lang === "ps" ? "ازاد کول" : "رفع مسدودیت"}</Button>
@@ -188,7 +189,6 @@ export default function Companies() {
                             if (reason) handleToggleBlacklist(c, reason);
                           }}>{lang === "en" ? "Block" : lang === "ps" ? "بلاک" : "مسدود"}</Button>
                         )}
-                        <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={() => setConfirmDelete(c)}>{lang === "en" ? "Delete" : lang === "ps" ? "حذف" : "حذف"}</Button>
                       </div>
                     </td>
                   </tr>
@@ -196,6 +196,45 @@ export default function Companies() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                {lang === "en" ? `Page ${currentPage} of ${totalPages}` :
+                 lang === "ps" ? `پاڼه ${currentPage} له ${totalPages}` :
+                 `صفحه ${currentPage} از ${totalPages}`}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  {lang === "en" ? "Previous" : lang === "ps" ? "مخکینی" : "قبلی"}
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <Button
+                    key={page}
+                    size="sm"
+                    variant={currentPage === page ? "primary" : "ghost"}
+                    onClick={() => setCurrentPage(page)}
+                    className="min-w-[32px]"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  {lang === "en" ? "Next" : lang === "ps" ? "راتلونکی" : "بعدی"}
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </Card>
 
@@ -221,14 +260,12 @@ export default function Companies() {
         />
       )}
 
-      <ConfirmModal
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
-        title={lang === "en" ? "Confirm Delete" : lang === "ps" ? "د حذف تایید" : "تایید حذف"}
-        message={lang === "en" ? `Are you sure you want to delete "${confirmDelete?.legal_name}"? This action cannot be undone.` : lang === "ps" ? `آیا تاسو غواړئ "${confirmDelete?.legal_name}" حذف کړئ؟ دا عمل بیرته نه راګرځي.` : `آیا مطمئن هستید که می‌خواهید "${confirmDelete?.legal_name}" را حذف کنید؟ این عمل قابل بازگشت نیست.`}
-        confirmText={lang === "en" ? "Delete" : lang === "ps" ? "حذف کړه" : "حذف"}
-      />
+      {viewing && (
+        <CompanyView
+          company={viewing}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
   );
 }
@@ -311,6 +348,57 @@ function CompanyForm({ initial, onClose, onSave }: { initial?: ApiCompany; onClo
           </Field>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+function CompanyView({ company, onClose }: { company: ApiCompany; onClose: () => void }) {
+  const { lang } = useI18n();
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={lang === "en" ? "View Company" : lang === "ps" ? "د شرکت لیدل" : "مشاهده شرکت"}
+      size="lg"
+      footer={
+        <Button variant="secondary" onClick={onClose}>{lang === "en" ? "Close" : lang === "ps" ? "بندول" : "بستن"}</Button>
+      }
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs text-slate-500 dark:text-slate-400">د شرکت نوم / Company name*</label>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-1">{company.legal_name}</p>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 dark:text-slate-400">د راجستر شمېره / Registration No.*</label>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-1">{company.registration_no}</p>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 dark:text-slate-400">ډول / Type*</label>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-1">{TYPE_LABELS[company.company_type as CompanyType]?.[lang] || company.company_type}</p>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 dark:text-slate-400">اړیکیال / Contact person*</label>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-1">{company.contact_person}</p>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 dark:text-slate-400">تلیفون / Phone</label>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-1" dir="ltr">{company.phone || '-'}</p>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 dark:text-slate-400">ایمیل / Email</label>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-1" dir="ltr">{company.email || '-'}</p>
+        </div>
+        <div className="sm:col-span-2">
+          <label className="text-xs text-slate-500 dark:text-slate-400">پته / Address</label>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-1">{company.address || '-'}</p>
+        </div>
+        <div className="sm:col-span-2">
+          <label className="text-xs text-slate-500 dark:text-slate-400">د کاري تجربې شرحه / Work experience</label>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-1 whitespace-pre-wrap">{company.experience || '-'}</p>
+        </div>
+      </div>
     </Modal>
   );
 }

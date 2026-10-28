@@ -29,7 +29,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { key: "dashboard", icon: "📊" },
   { key: "companies", icon: "🏢" },
-  { key: "contracts", icon: "📑" },
+  { key: "contracts", icon: "📝" },
   { key: "orders", icon: "📦" },
   { key: "listOfOffices", icon: "🏢" },
   { key: "inventory", icon: "📋" },
@@ -79,7 +79,7 @@ export default function Layout({
         {/* Brand */}
         <div className="h-16 px-5 flex items-center gap-3 border-b border-slate-200 dark:border-slate-700">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white flex items-center justify-center text-lg shadow-sm">
-            📋
+            📊
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{t.appName}</p>

@@ -60,6 +60,23 @@ class InventoryItemController extends Controller
         ]);
     }
 
+    public function trashed(Request $request)
+    {
+        $query = InventoryItem::onlyTrashed()->with(['inventoryLocation']);
+
+        $size = min(max((int) $request->input('pageSize', 25), 1), 100);
+        $items = $query->orderByDesc('deleted_at')->paginate($size);
+
+        return response()->json([
+            'data' => $items->items(),
+            'meta' => [
+                'page' => $items->currentPage(),
+                'pageSize' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
+    }
+
     public function show(Request $request, int $id)
     {
         $item = InventoryItem::with(['inventoryLocation', 'supplierCompany', 'movements.performedBy'])
@@ -144,6 +161,14 @@ class InventoryItemController extends Controller
         $item->restore();
 
         return response()->json(['data' => $item]);
+    }
+
+    public function forceDelete(Request $request, int $id)
+    {
+        $item = InventoryItem::withTrashed()->findOrFail($id);
+        $item->forceDelete();
+
+        return response()->noContent();
     }
 
     public function adjustQuantity(Request $request, int $id)

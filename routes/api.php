@@ -34,6 +34,7 @@ Route::prefix('v1')->group(function () {
         // Procurement Forms Routes
         Route::get('procurement-forms/rfq',[ProcurementFormsController::class,'rfqIndex']); Route::post('procurement-forms/rfq',[ProcurementFormsController::class,'rfqStore']); Route::get('procurement-forms/rfq/{id}',[ProcurementFormsController::class,'rfqShow']); Route::patch('procurement-forms/rfq/{id}',[ProcurementFormsController::class,'rfqUpdate']); Route::delete('procurement-forms/rfq/{id}',[ProcurementFormsController::class,'rfqDestroy']); Route::post('procurement-forms/rfq/{id}/restore',[ProcurementFormsController::class,'rfqRestore']); Route::delete('procurement-forms/rfq/{id}/force',[ProcurementFormsController::class,'rfqForceDelete']);
         Route::get('procurement-forms/m2',[ProcurementFormsController::class,'m2Index']); Route::post('procurement-forms/m2',[ProcurementFormsController::class,'m2Store']); Route::get('procurement-forms/m2/{id}',[ProcurementFormsController::class,'m2Show']); Route::patch('procurement-forms/m2/{id}',[ProcurementFormsController::class,'m2Update']); Route::delete('procurement-forms/m2/{id}',[ProcurementFormsController::class,'m2Destroy']); Route::post('procurement-forms/m2/{id}/restore',[ProcurementFormsController::class,'m2Restore']); Route::delete('procurement-forms/m2/{id}/force',[ProcurementFormsController::class,'m2ForceDelete']);
+        Route::get('procurement-forms/m3h',[ProcurementFormsController::class,'m3hIndex']); Route::post('procurement-forms/m3h',[ProcurementFormsController::class,'m3hStore']); Route::get('procurement-forms/m3h/{id}',[ProcurementFormsController::class,'m3hShow']); Route::patch('procurement-forms/m3h/{id}',[ProcurementFormsController::class,'m3hUpdate']); Route::delete('procurement-forms/m3h/{id}',[ProcurementFormsController::class,'m3hDestroy']);
         Route::get('procurement-forms/evaluation',[ProcurementFormsController::class,'evaluationIndex']); Route::post('procurement-forms/evaluation',[ProcurementFormsController::class,'evaluationStore']); Route::get('procurement-forms/evaluation/{id}',[ProcurementFormsController::class,'evaluationShow']); Route::patch('procurement-forms/evaluation/{id}',[ProcurementFormsController::class,'evaluationUpdate']); Route::delete('procurement-forms/evaluation/{id}',[ProcurementFormsController::class,'evaluationDestroy']); Route::post('procurement-forms/evaluation/{id}/restore',[ProcurementFormsController::class,'evaluationRestore']); Route::delete('procurement-forms/evaluation/{id}/force',[ProcurementFormsController::class,'evaluationForceDelete']);
         Route::get('procurement-forms/submissions',[ProcurementFormsController::class,'submissionsIndex']); Route::post('procurement-forms/submissions',[ProcurementFormsController::class,'submissionStore']); Route::get('procurement-forms/submissions/{id}',[ProcurementFormsController::class,'submissionShow']); Route::patch('procurement-forms/submissions/{id}',[ProcurementFormsController::class,'submissionUpdate']); Route::delete('procurement-forms/submissions/{id}',[ProcurementFormsController::class,'submissionDestroy']);
         // New Procurement Workflow Routes (5 Forms)
@@ -62,15 +63,19 @@ Route::prefix('v1')->group(function () {
         // Office Categories & Offices Routes
         Route::prefix('office-categories')->group(function () {
             Route::get('/',[OfficeCategoryController::class,'index']);
+            Route::get('trashed',[OfficeCategoryController::class,'trashed']);
             Route::post('/',[OfficeCategoryController::class,'store']);
             Route::get('{id}',[OfficeCategoryController::class,'show']);
             Route::patch('{id}',[OfficeCategoryController::class,'update']);
             Route::delete('{id}',[OfficeCategoryController::class,'destroy']);
             Route::post('{id}/activate',[OfficeCategoryController::class,'activate']);
             Route::post('{id}/deactivate',[OfficeCategoryController::class,'deactivate']);
+            Route::post('{id}/restore',[OfficeCategoryController::class,'restore']);
+            Route::delete('{id}/force',[OfficeCategoryController::class,'forceDelete']);
         });
         Route::prefix('offices-model')->group(function () {
             Route::get('/',[OfficeController::class,'index']);
+            Route::get('trashed',[OfficeController::class,'trashed']);
             Route::post('/',[OfficeController::class,'store']);
             Route::get('{id}',[OfficeController::class,'show']);
             Route::patch('{id}',[OfficeController::class,'update']);
@@ -78,10 +83,13 @@ Route::prefix('v1')->group(function () {
             Route::post('{id}/activate',[OfficeController::class,'activate']);
             Route::post('{id}/deactivate',[OfficeController::class,'deactivate']);
             Route::get('category/{categoryId}',[OfficeController::class,'byCategory']);
+            Route::post('{id}/restore',[OfficeController::class,'restore']);
+            Route::delete('{id}/force',[OfficeController::class,'forceDelete']);
         });
         // Inventory Locations & Items Routes
         Route::prefix('inventory-locations-model')->group(function () {
             Route::get('/',[InventoryLocationController::class,'index']);
+            Route::get('trashed',[InventoryLocationController::class,'trashed']);
             Route::post('/',[InventoryLocationController::class,'store']);
             Route::get('{id}',[InventoryLocationController::class,'show']);
             Route::patch('{id}',[InventoryLocationController::class,'update']);
@@ -89,14 +97,18 @@ Route::prefix('v1')->group(function () {
             Route::post('{id}/activate',[InventoryLocationController::class,'activate']);
             Route::post('{id}/deactivate',[InventoryLocationController::class,'deactivate']);
             Route::get('office/{officeId}',[InventoryLocationController::class,'byOffice']);
+            Route::post('{id}/restore',[InventoryLocationController::class,'restore']);
+            Route::delete('{id}/force',[InventoryLocationController::class,'forceDelete']);
         });
         Route::prefix('inventory-items-model')->group(function () {
             Route::get('/',[InventoryItemController::class,'index']);
+            Route::get('trashed',[InventoryItemController::class,'trashed']);
             Route::post('/',[InventoryItemController::class,'store']);
             Route::get('{id}',[InventoryItemController::class,'show']);
             Route::patch('{id}',[InventoryItemController::class,'update']);
             Route::delete('{id}',[InventoryItemController::class,'destroy']);
             Route::post('{id}/restore',[InventoryItemController::class,'restore']);
+            Route::delete('{id}/force',[InventoryItemController::class,'forceDelete']);
             Route::post('{id}/adjust-quantity',[InventoryItemController::class,'adjustQuantity']);
             Route::get('{id}/movements',[InventoryItemController::class,'movements']);
             Route::get('statistics',[InventoryItemController::class,'statistics']);
@@ -138,11 +150,13 @@ Route::prefix('v1')->group(function () {
         // Dedicated Model-based Routes (new)
         Route::prefix('companies')->group(function () {
             Route::get('/',[CompanyController::class,'index']);
+            Route::get('trashed',[CompanyController::class,'trashed']);
             Route::post('/',[CompanyController::class,'store']);
             Route::get('{id}',[CompanyController::class,'show']);
             Route::patch('{id}',[CompanyController::class,'update']);
             Route::delete('{id}',[CompanyController::class,'destroy']);
             Route::post('{id}/restore',[CompanyController::class,'restore']);
+            Route::delete('{id}/force',[CompanyController::class,'forceDelete']);
             Route::post('{id}/blacklist',[CompanyController::class,'blacklist']);
             Route::post('{id}/reinstate',[CompanyController::class,'reinstate']);
             Route::get('{id}/violations',[CompanyController::class,'violations']);
@@ -150,11 +164,13 @@ Route::prefix('v1')->group(function () {
         });
         Route::prefix('contracts-model')->group(function () {
             Route::get('/',[ContractController::class,'index']);
+            Route::get('trashed',[ContractController::class,'trashed']);
             Route::post('/',[ContractController::class,'store']);
             Route::get('{id}',[ContractController::class,'show']);
             Route::patch('{id}',[ContractController::class,'update']);
             Route::delete('{id}',[ContractController::class,'destroy']);
             Route::post('{id}/restore',[ContractController::class,'restore']);
+            Route::delete('{id}/force',[ContractController::class,'forceDelete']);
             Route::post('{id}/progress',[ContractController::class,'updateProgress']);
             Route::get('{id}/progress-updates',[ContractController::class,'progressUpdates']);
             Route::post('{id}/progress-updates',[ContractController::class,'addProgressUpdate']);
@@ -164,11 +180,13 @@ Route::prefix('v1')->group(function () {
         });
         Route::prefix('procurement-orders-model')->group(function () {
             Route::get('/',[ProcurementOrderController::class,'index']);
+            Route::get('trashed',[ProcurementOrderController::class,'trashed']);
             Route::post('/',[ProcurementOrderController::class,'store']);
             Route::get('{id}',[ProcurementOrderController::class,'show']);
             Route::patch('{id}',[ProcurementOrderController::class,'update']);
             Route::delete('{id}',[ProcurementOrderController::class,'destroy']);
             Route::post('{id}/restore',[ProcurementOrderController::class,'restore']);
+            Route::delete('{id}/force',[ProcurementOrderController::class,'forceDelete']);
             Route::post('{id}/submit',[ProcurementOrderController::class,'submit']);
             Route::post('{id}/approve',[ProcurementOrderController::class,'approve']);
             Route::post('{id}/complete',[ProcurementOrderController::class,'complete']);
